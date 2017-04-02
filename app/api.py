@@ -11,27 +11,6 @@ api_endpoint = '/api/v{}/'.format(version)
 
 parqr = PARQR('ixpgu1xccuo47d', app.logger)
 
-sample_post = {
-    'folders': 'h2q4',
-    'history': [{
-        'anon': u'stud',
-        'content': u'<p>I am trying to read the zip code values</p>',
-        u'created': u'2017-03-02T20:10:11Z',
-        u'subject': u'CSV reading zipcode',
-        u'uid':
-        u'hz1jr5fxbj16y'}]
-}
-
-
-'''
-@celery.task(bind=True)
-def create_matrix_async(self):
-    # the instance that actually runs isn't the same instance where you call
-    # the delay method. Every worker instantiates it's own singleton for each
-    # task.
-    parqr.create_tfidf_matrix(self)
-'''
-
 
 @app.errorhandler(404)
 def not_found(error):
