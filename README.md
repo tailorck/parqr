@@ -8,6 +8,6 @@ body, and tags of a new post.
 
 ### Run
 
-To run the API, use gunicorn command:
+To run the API, use the run script:
 
-    gunicorn app.api:app
+    sh run.sh < development | production >
