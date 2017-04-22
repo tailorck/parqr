@@ -61,7 +61,7 @@ class Parqr():
         top_posts = {}
         for pid, score in zip(top_N_pids, scores[top_N_vector_indices]):
             subject = Post.objects(cid=cid, pid=pid)[0].subject
-            top_posts[score] = {'pid': pid, 'score': score}
+            top_posts[score] = {'pid': pid, 'subject': subject}
 
         return top_posts
 
@@ -69,6 +69,7 @@ class Parqr():
         """Queries database for all posts within particular course"""
         # TODO: Catch DoesNotExist exception for missing course
         course = Course.objects.get(cid=cid)
+
         words = []
         pids = []
         for post in course.posts:
