@@ -1,15 +1,14 @@
 from app import app
 from app.exception import InvalidUsage
-from flask import jsonify, make_response, request, url_for
-from piazza_api import Piazza
-from app.parqr import PARQR
-import sys
-import logging
+from flask import jsonify, make_response, request
+from app.parqr import Parqr
+from app.scraper import Scraper
 
 version = '1.0'
 api_endpoint = '/api/v{}/'.format(version)
 
-parqr = PARQR('ixpgu1xccuo47d', app.logger)
+parqr = Parqr(app.logger)
+scraper = Scraper(app.logger)
 
 
 @app.errorhandler(404)
@@ -35,7 +34,7 @@ def update_course():
         raise InvalidUsage('Course ID not found in JSON', 500)
 
     course_id = request.json['course_id']
-    parqr.set_course(course_id)
+    scraper.update_course(course_id)
     return jsonify({'course_id': course_id}), 202
 
 
@@ -48,10 +47,8 @@ def similar_posts():
     if 'query' not in request.json:
         raise InvalidUsage('No query string found in parameters', 500)
 
-    try:
-        N = int(request.json['N']) if 'N' in request.json else 5
-        query = request.json['query']
-        similar_posts = parqr.get_similar_posts(query, N)
-        return jsonify(similar_posts)
-    except ValueError:
-        raise InvalidUsage('N parameter must be an integer', 500)
+    N = 5
+    query = request.json['query']
+    cid = request.json['cid']
+    similar_posts = parqr.get_similar_posts(cid, query, N)
+    return jsonify(similar_posts)

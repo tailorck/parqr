@@ -1,52 +1,25 @@
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction import text
 from nltk.corpus import stopwords
-from bs4 import BeautifulSoup
-from piazza_api import Piazza
-from piazza_api.exceptions import AuthenticationError
-from progressbar import ProgressBar
-from threading import Thread
 from app.exception import InvalidUsage
+from app.models import Course, Post
+from app.utils import clean, clean_and_split
 import numpy as np
-import re
+import pdb
 
 
-class PARQR():
-    def __init__(self, course_id, logger):
-        self.p = Piazza()
-        while True:
-            try:
-                self.p.user_login()
-                break
-            except AuthenticationError:
-                continue
+class Parqr():
+    def __init__(self, logger):
+        self._logger = logger
+        self._vectorizers = {}
+        self._matrices = {}
+        self._post_ids = {}
 
-        self.logger = logger
-        self.background_thread = Thread(target=self.__create_tfidf_matrix)
-        self.course = None
-        self.posts = None
-        self.vectorizer = None
-        self.tfidf_matrix = None
-
-        if course_id is not None:
-            self.set_course(course_id)
-
-    def set_course(self, course_id):
-        """Creates a course object for retreiving course stats and posts
-
-        Args:
-            course_id: (str) The course ID found in the URL for the course
-        """
-        # TODO: Catch invalid course_id exception
-        self.logger.info('Setting course to course_id: ' + course_id)
-        self.course_id = course_id
-        self.course = self.p.network(course_id)
-        self.background_thread.start()
-
-    def get_similar_posts(self, query, N):
+    def get_similar_posts(self, cid, query, N):
         """Get the N most similar posts to provided query.
 
         Args:
+            cid: (string) The course id of the class found in the url
             query: (str) A query string to perform comparison on
             N: (int) The number of similar posts to return
 
@@ -54,60 +27,83 @@ class PARQR():
             top_posts: A sorted dict of the top N most similar posts with
             their similarity scores (e.g. {1: 2.872, 2: 0.5284, ...})
         """
-        self.logger.info('Retrieving similar posts for query: ' + query)
-        if self.background_thread.is_alive():
-            raise InvalidUsage('Background thread is still running', 500)
+        self._logger.info('Retrieving similar posts for query: ' + query)
 
-        q_vector = self.vectorizer.transform([query])
-        scores = cosine_similarity(q_vector, self.tfidf_matrix)[0]
-        top_N = np.argsort(scores)[::-1][:N]
-        top_posts = {k: v for k, v in zip(top_N, scores[top_N])}
+        # clean query vector
+        clean_query = clean(query)
+
+        # retrieve the appropriate vectorizer and pre-computed TF-IDF Matrix
+        # for this course, or create new ones if they do not exist
+        if cid not in self._vectorizers or cid not in self._matrices:
+            vectorizer, tfidf_matrix = self._vectorize_words(cid)
+        else:
+            vectorizer = self._vectorizers[cid]
+            tfidf_matrix = self._matrices[cid]
+
+        # the transform method takes an iterable as input. Tthe string does not
+        # need to be tokenized, just placed in a list
+        q_vector = vectorizer.transform([clean_query])
+
+        # calculate the similarity score for query with all vectors in matrix
+        scores = cosine_similarity(q_vector, tfidf_matrix)[0]
+
+        # retrieve the index of the vectors with the highest similarity.
+        # np.argsort naturally sorts in ascending order, so the list must be
+        # reversed and the top N most similar posts are stored
+        top_N_vector_indices = np.argsort(scores)[::-1][:N]
+
+        # the index of the vector in the matrix does not directly correspond to
+        # the pid of the associated post, so the vector indices must be mapped
+        # to course post ids
+        top_N_pids = self._post_ids[cid][top_N_vector_indices]
+
+        # Return post id, subject, and score
+        top_posts = {}
+        for pid, score in zip(top_N_pids, scores[top_N_vector_indices]):
+            subject = Post.objects(cid=cid, pid=pid)[0].subject
+            top_posts[score] = {'pid': pid, 'score': score}
+
         return top_posts
 
-    def __remove_punctuation_and_numbers(self, string):
-        """Removes all non-lowercase or non-uppercase characters from string
+    def _get_posts_as_words(self, cid):
+        """Queries database for all posts within particular course"""
+        # TODO: Catch DoesNotExist exception for missing course
+        course = Course.objects.get(cid=cid)
+        words = []
+        pids = []
+        for post in course.posts:
+            pids.append(post.pid)
+            clean_subject = clean_and_split(post.subject)
+            clean_body = clean_and_split(post.body)
+            tags = post.tags
+            words.append(' '.join(clean_subject + clean_body + tags))
+
+        self._post_ids[cid] = np.array(pids)
+        return np.array(words)
+
+    def _vectorize_words(self, cid):
+        """Vectorizes the list of post words into a TFIDF Matrix
+
+        Args:
+            cid: (string) The course id of the class found in the url
 
         Returns:
-            A string without punctuation and numbers
+            vectorizer: (TfidfVectorizer) A vectorizer to transform word
+                strings to their TF-IDF vectors
+            tfidf_matrix: (scipy.sparse.csr_matrix) A matrix containing the
+                TF-IDF vectors of all the currently known posts
         """
-        return re.sub('[^a-zA-Z]', ' ', string)
-
-    def __clean_and_split(self, string):
-        """Removes punctuation and returns a list of words in the string"""
-        only_letters = self.__remove_punctuation_and_numbers(string)
-        return only_letters.lower().strip().split()
-
-    def __get_all_posts(self):
-        """Returns a list of strings containing the words from every post in a
-        Piazza course.
-        """
-        self.logger.info('Retrieving all posts from course with id: ' +
-                         self.course_id)
-        self.posts = []
-        stats = self.course.get_statistics()
-        pbar = ProgressBar(maxval=stats['total']['questions'])
-        for post in pbar(self.course.iter_all_posts()):
-            subject = self.__clean_and_split(post['history'][0]['subject'])
-
-            html_body = post['history'][0]['content']
-            parsed_body = BeautifulSoup(html_body, 'html.parser').get_text()
-            body = self.__clean_and_split(parsed_body)
-
-            tags_list = post['folders']
-            self.posts.append(' '.join(subject + body + tags_list))
-
-        self.posts = np.array(self.posts)
-
-    def __vectorize_words(self):
-        """Vectorizes the list of post words into a TFIDF Matrix"""
-        self.logger.info('Vectorizing words from posts list')
+        self._logger.info('Vectorizing words from posts list')
         nltk_stopwords = set(stopwords.words('english'))
-        stop_words = text.ENGLISH_STOP_WORDS.union(nltk_stopwords)
-        self.vectorizer = text.TfidfVectorizer(stop_words=set(stop_words))
-        self.tfidf_matrix = self.vectorizer.fit_transform(self.posts)
+        stop_words = set(text.ENGLISH_STOP_WORDS.union(nltk_stopwords))
+        vectorizer = text.TfidfVectorizer(analyzer='word',
+                                          stop_words=stop_words)
 
-    def __create_tfidf_matrix(self):
-        """Downloads data for course and vectorizes data into a tfidf matrix"""
-        # self.__get_all_posts()
-        self.__get_all_posts()
-        self.__vectorize_words()
+        post_words = self._get_posts_as_words(cid)
+        tfidf_matrix = vectorizer.fit_transform(post_words)
+
+        self._vectorizers[cid] = vectorizer
+        self._matrices[cid] = tfidf_matrix
+
+        self._logger.info('Finished Vectorizing')
+        return vectorizer, tfidf_matrix
