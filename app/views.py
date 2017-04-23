@@ -47,7 +47,7 @@ def similar_posts():
     if 'query' not in request.json:
         raise InvalidUsage('No query string found in parameters', 500)
 
-    N = 5
+    N = int(request.json['N'])
     query = request.json['query']
     cid = request.json['cid']
     similar_posts = parqr.get_similar_posts(cid, query, N)
