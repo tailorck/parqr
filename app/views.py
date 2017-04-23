@@ -5,7 +5,7 @@ from app.parqr import Parqr
 from app.scraper import Scraper
 
 version = '1.0'
-api_endpoint = '/api/v{}/'.format(version)
+api_endpoint = '/api/'.format(version)
 
 parqr = Parqr(app.logger)
 scraper = Scraper(app.logger)

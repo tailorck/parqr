@@ -26,10 +26,10 @@ class Scraper():
         Args:
             course_id: (str) The course ID found in the URL for the course
         """
-        # TODO: Catch invalid course_id exception
         if course_id in self._threads and self._threads[course_id].is_alive():
             raise InvalidUsage('Background thread is running', 500)
 
+        # TODO: Catch invalid course_id exception
         network = self._piazza.network(course_id)
         self._threads[course_id] = Thread(target=self._update_course,
                                           args=(course_id, network,))
