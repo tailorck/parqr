@@ -60,8 +60,14 @@ class Parqr():
         # Return post id, subject, and score
         top_posts = {}
         for pid, score in zip(top_N_pids, scores[top_N_vector_indices]):
-            subject = Post.objects(cid=cid, pid=pid)[0].subject
-            top_posts[score] = {'pid': pid, 'subject': subject}
+            post = Post.objects(cid=cid, pid=pid)[0]
+            subject = post.subject
+            student_answer = True if post.s_answer != None else False
+            instructor_answer = True if post.i_answer != None else False
+            top_posts[score] = {'pid': pid,
+                                'subject': subject,
+                                's_answer': student_answer,
+                                'i_answer': instructor_answer}
 
         return top_posts
 
