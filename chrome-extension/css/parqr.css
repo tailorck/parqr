@@ -1,0 +1,20 @@
+#recommendations {
+	margin-top: 8px;
+}
+
+#rec_link_list {
+	margin-top: 8px;
+}
+
+a.rec_link {
+  text-decoration: none;
+}
+
+a.rec_link:hover, a.rec_link:focus {
+	text-decoration: none;
+}
+
+ul.no-bullets {
+  list-style: none;
+  padding-left: 0px;
+}

@@ -1,21 +1,25 @@
 recommendations_html = `
 	<div id="recommendations">
-		<b>Questions that may already have your answer:</b>
-		<div id="r_links">
-		</div>
+		<b>These posts may already have your answer:</b>
+		<ul id="rec_link_list">
+		</ul>
 	</div>
 	`;
 
+
 SIGNIFICANT_DIFF = 5;
 
-function newButtonClick(e) {
-	//document.getElementsByClassName("right_section")[3].innerHTML += collapsible_container;
-	//$("#collapse").collapse("show");
+$(document).ready(function() {
+	$("#new_post_button").click(newButtonClick);
+});
 
+console.log('content script loaded')
+
+function newButtonClick(e) {
 	var curr_length = 0;
 	setInterval(function() {
 		curr_length = parsePiazzaText(curr_length);
-	}, 10000);
+	}, 1000);
 }
 
 function parsePiazzaText(curr_length) {
@@ -32,23 +36,42 @@ function parsePiazzaText(curr_length) {
 			response = JSON.parse(response);
 			
 			// Insert the recommendation template if it is not already there
-			if (document.getElementById("recommendations") == null) {
-				document.getElementsByClassName("right_section")[3].innerHTML += recommendations_html;
+			if ($("#recommendations").length == 0) {
+				$(".right_section")[3].innerHTML += recommendations_html;
 			}
 
 			// Grab a handle to the links div and remove the previous links
-			var r_links = document.getElementById("r_links");
-			r_links.innerHTML = "";
-			
+			var $rec_link_list = $("#rec_link_list") 
+			$rec_link_list[0].innerHTML = "";
+		
+			// Insert recommendations into template in order of best score
 			var sorted_scores = Object.keys(response).sort().reverse();
 			for (i = 0; i < sorted_scores.length; i++) {
+				// Extract pertinent information from response json
 				var score = sorted_scores[i];
 				var pid = response[score]["pid"];
-				var url = window.location.href + "?cid=" + pid;
+				var subject = response[score]["subject"];
+				var dest = window.location.href + "?cid=" + pid;
+				var s_answer_exists = response[score]["s_answer"];
+				var i_answer_exists = response[score]["i_answer"];
 
-				// var rounded_score = Math.round(parseFloat(score)*1000)/1000;
-				var innerText = "@{0}:\t{1}".format(pid, response[score]["subject"]);
-				r_links.innerHTML += '<a href={0} target="_blank">{1}</a><br>'.format(url, innerText);
+				// Create a rounded box with the pid of the suggestion
+				var $pid_link = $('<button>').text('@' + pid).addClass("box");
+				if (s_answer_exists) {
+					$pid_link.addClass("box-yellow");
+				} else if (i_answer_exists) {
+					$pid_link.addClass("box-green");
+				} else {
+					$pid_link.addClass("box-blend");
+				}
+
+				// Create a link with the subject of the suggestions
+				var link_string = '<a href="{0}" target="_blank" class="rec_link"></a>'.format(dest);
+				var $subject_link = $(link_string).html(subject);
+
+				var pid_html = $pid_link[0].outerHTML;
+				var subject_html = $subject_link[0].outerHTML;
+				$rec_link_list.append($('<li>').html('{0}{1}'.format(pid_html, subject_html)));
 			}
 		});
 		return new_length;
@@ -64,7 +87,7 @@ function getCourseId() {
 }
 
 function getTags() {
-	var selected_tags = document.getElementsByClassName('right_section')[2]
+	var selected_tags = $('.right_section')[2]
 		.getElementsByClassName('selected');
 
 	var tag_texts = [];
@@ -76,12 +99,12 @@ function getTags() {
 }
 
 function getWords() {
-	var body_iframe = document.getElementById('rich_old_new_post_ifr').contentWindow;
+	var body_iframe = $('#rich_old_new_post_ifr')[0].contentWindow;
 
 	var tag_texts = getTags();
 	var word_list = [];
 
-	var summary = document.getElementById('post_summary').value;
+	var summary = $('#post_summary').val();
 	var body = body_iframe.document.getElementsByTagName('p')[0].innerText;
 
 	if (summary.length > 0) {
@@ -112,21 +135,3 @@ if (!String.prototype.format) {
     });
   };
 }
-
-document.getElementById('new_post_button').addEventListener('click', newButtonClick);
-
-console.log('content script loaded')
-
-/*
-collapsible_container = `
-	<div class="container">
-  	<div class="panel-group">
-    	<div class="panel panel-default">
-				<div id="collapse" class="panel-collapse collapse">
-					<div class="panel-body">Sample Panel Body</div>
-				</div>
-    	</div>
-  	</div>
-	</div>	
-	`;
-*/
