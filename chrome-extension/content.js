@@ -51,7 +51,7 @@ function parsePiazzaText(curr_length) {
 				var score = sorted_scores[i];
 				var pid = response[score]["pid"];
 				var subject = response[score]["subject"];
-				var dest = window.location.href + "?cid=" + pid;
+				var dest = window.location.href.split('?')[0] + "?cid=" + pid;
 				var s_answer_exists = response[score]["s_answer"];
 				var i_answer_exists = response[score]["i_answer"];
 
