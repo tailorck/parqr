@@ -4,8 +4,7 @@ from flask import jsonify, make_response, request
 from app.parqr import Parqr
 from app.scraper import Scraper
 
-version = '1.0'
-api_endpoint = '/api/'.format(version)
+api_endpoint = '/api/'
 
 parqr = Parqr(app.logger)
 scraper = Scraper(app.logger)
