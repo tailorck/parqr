@@ -9,8 +9,12 @@ import pdb
 
 
 class Parqr():
-    def __init__(self, logger):
-        self._logger = logger
+    def __init__(self, logger=None):
+        if logger is None:
+            self.verbose = False
+        else:
+            self.verbose = True
+            self._logger = logger
         self._vectorizers = {}
         self._matrices = {}
         self._post_ids = {}
@@ -27,7 +31,8 @@ class Parqr():
             top_posts: A sorted dict of the top N most similar posts with
             their similarity scores (e.g. {1: 2.872, 2: 0.5284, ...})
         """
-        self._logger.info('Retrieving similar posts for query: ' + query)
+        if self.verbose:
+            self._logger.info('Retrieving similar posts for query: ' + query)
 
         # clean query vector
         clean_query = clean(query)
@@ -100,7 +105,8 @@ class Parqr():
             tfidf_matrix: (scipy.sparse.csr_matrix) A matrix containing the
                 TF-IDF vectors of all the currently known posts
         """
-        self._logger.info('Vectorizing words from posts list')
+        if self.verbose:
+            self._logger.info('Vectorizing words from posts list')
         nltk_stopwords = set(stopwords.words('english'))
         stop_words = set(text.ENGLISH_STOP_WORDS.union(nltk_stopwords))
         vectorizer = text.TfidfVectorizer(analyzer='word',
@@ -112,5 +118,7 @@ class Parqr():
         self._vectorizers[cid] = vectorizer
         self._matrices[cid] = tfidf_matrix
 
-        self._logger.info('Finished Vectorizing')
+        if self.verbose:
+            self._logger.info('Finished Vectorizing')
+
         return vectorizer, tfidf_matrix
