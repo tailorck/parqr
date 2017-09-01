@@ -1,3 +1,9 @@
+"""
+This module creates a key pair to encrypt your Piazza username and password.
+The scraper with read the .login file created and decrypt the username and
+password with the private key saved as .key.pem
+"""
+
 from Crypto.PublicKey import RSA
 from Crypto import Random
 import getpass

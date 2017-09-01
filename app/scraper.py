@@ -13,34 +13,55 @@ from .utils import read_credentials
 
 class Scraper():
 
-    def __init__(self, logger):
+    def __init__(self, logger=None):
+        """Initialize the Piazza object and login with the encrypted username
+        and password
+
+        Parameters
+        ----------
+        logger : logging.logger
+            The main logger used to communicate information back to the user
+        """
         self._piazza = Piazza()
-        self._logger = logger
         self._threads = {}
+        if logger == None:
+            self._verbose = False
+        else:
+            self._verbose = True
+            self._logger = logger
 
         self._login()
 
-    def update_course(self, course_id):
-        """Creates a course object for retreiving course stats and posts
+    def pull_new_posts(self, course_id):
+        """Creates a thread task to retrieve all new posts for a course
 
-        Args:
-            course_id: (str) The course ID found in the URL for the course
+        Parameters
+        ----------
+        course_id : str
+            The course id of the class to be updated
         """
         if course_id in self._threads and self._threads[course_id].is_alive():
             raise InvalidUsage('Background thread is running', 500)
 
         # TODO: Catch invalid course_id exception
         network = self._piazza.network(course_id)
-        self._threads[course_id] = Thread(target=self._update_course,
+        self._threads[course_id] = Thread(target=self._pull_new_posts,
                                           args=(course_id, network,))
 
         self._threads[course_id].start()
 
-    def _update_course(self, course_id, network):
-        """Returns a list of strings containing the words from every post in a
-        Piazza course.
+    def _pull_new_posts(self, course_id, network):
+        """Retrieves all new posts in course that are not already in database
+
+        Parameters
+        ----------
+        course_id : str
+            The course id of the class to be updated
+        network : piazza_api.network
+            A handle to the network object for the course
         """
-        self._logger.info('Retrieving posts for: {}'.format(course_id))
+        if self._verbose:
+            self._logger.info('Retrieving posts for: {}'.format(course_id))
         stats = network.get_statistics()
         total_questions = stats['total']['questions']
         pbar = ProgressBar(maxval=total_questions)
@@ -66,37 +87,95 @@ class Scraper():
                 continue
 
             # Extract the subject, body, and tags from post
-            subject = post['history'][0]['subject']
-            html_body = post['history'][0]['content']
-            parsed_body = BeautifulSoup(html_body, 'html.parser').get_text()
-            tags = post['folders']
+            subject, body, tags = self._extract_question_details(post)
+
+            # Extract the student and instructor answers if applicable
+            s_answer, i_answer = self._extract_answers(post)
 
             # Create a new post and add it to the course
-            post = Post(course_id, pid, subject, parsed_body, tags).save()
-            course.update(add_to_set__posts=post)
+            mongo_post = Post(course_id, pid, subject, body, tags, s_answer,
+                              i_answer).save()
+            course.update(add_to_set__posts=mongo_post)
 
         self._threads.pop(course_id)
 
+    def _extract_question_details(self, post):
+        """Retrieves information pertaining to the question in the piazza post
+
+        Parameters
+        ----------
+        post : dict
+            An object including  post information retrieved from a
+            piazza_api call
+
+        Returns
+        -------
+            subject : str
+                The subject of the piazza post
+            parsed_body : str
+                The body of the post without html tags
+            tags : list
+                A list of the tags or folders that the post belonged to
+        """
+        subject = post['history'][0]['subject']
+        html_body = post['history'][0]['content']
+        parsed_body = BeautifulSoup(html_body, 'html.parser').get_text()
+        tags = post['folders']
+        return subject, parsed_body, tags
+
+    def _extract_answers(self, post):
+        """Retrieves information pertaining to the answers of the piazza post
+
+        Parameters
+        ----------
+        post : dict
+            An object including the post information retrieved from a
+            piazza_api call
+
+        Returns
+        -------
+        s_answer : str
+            The student answer to the post if available (Default = None).
+        i_answer : str
+            The instructor answer to the post if available (Default = None).
+        """
+        s_answer, i_answer = None, None
+        for response in post['children'][:2]:
+            if response['type'] == 's_answer':
+                html_text = response['history'][0]['content']
+                s_answer = BeautifulSoup(html_text, 'html.parser').get_text()
+            elif response['type'] == 'i_answer':
+                html_text = response['history'][0]['content']
+                i_answer = BeautifulSoup(html_text, 'html.parser').get_text()
+
+        return s_answer, i_answer
+
     def _login(self):
+        """Try to read the login file else prompt the user for manual login"""
         try:
             email, password = read_credentials()
             self._piazza.user_login(email, password)
         except IOError:
-            self._logger.error("File not found. Use encrypt_login.py to "
-                               "create encrypted password store")
+            if self._verbose:
+                self._logger.error("File not found. Use encrypt_login.py to "
+                                   "create encrypted password store")
             self._login_with_input()
         except UnicodeDecodeError, AuthenticationError:
-            self._logger.error("Incorrect Email/Password found in encrypted "
-                               "file store")
+            if self._verbose:
+                self._logger.error("Incorrect Email/Password found in "
+                                   "encryptedfile store")
             self._login_with_input()
 
-        self._logger.info('Ready to serve requests')
+        if self._verbose:
+            self._logger.info('Ready to serve requests')
 
     def _login_with_input(self):
+        """Prompt the user to input username and password to login to Piazza"""
         while True:
             try:
                 self._piazza.user_login()
                 break
             except AuthenticationError:
-                self._logger.error('Invalid Username/Password')
+                if self._verbose:
+                    self._logger.error('Invalid Username/Password')
                 continue

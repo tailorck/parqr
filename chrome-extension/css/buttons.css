@@ -1,0 +1,41 @@
+.box:focus {
+	outline: 0;
+}
+
+.box {
+  display: inline-block;
+  padding: 7px 10px;
+  margin-right: 10px;
+  margin-bottom: 5px;
+  font-size: 12px;
+  line-height: 12px;
+  min-width: 60px;
+  color: #7f94a1;
+  text-align: center;
+  vertical-align: middle;
+  background-color: #eaeff4;
+  -webkit-border-radius: 4px;
+	-webkit-box-shadow: none;
+	text-shadow: none;
+	box-shadow: none;
+	border: none;
+}
+
+.box-blend {
+  color: #3c7cc0;
+}
+
+.box-green {
+  color: #fff;
+  background-color: #8cc640;
+}
+
+.box-yellow {
+  color: #fff;
+  background-color: #faae40;
+}
+
+.box-white {
+  color: #5e5e5e;
+  background-color: #fff;
+}

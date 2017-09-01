@@ -4,8 +4,7 @@ from flask import jsonify, make_response, request
 from app.parqr import Parqr
 from app.scraper import Scraper
 
-version = '1.0'
-api_endpoint = '/api/'.format(version)
+api_endpoint = '/api/'
 
 parqr = Parqr(app.logger)
 scraper = Scraper(app.logger)
@@ -34,7 +33,7 @@ def update_course():
         raise InvalidUsage('Course ID not found in JSON', 500)
 
     course_id = request.json['course_id']
-    scraper.update_course(course_id)
+    scraper.pull_new_posts(course_id)
     return jsonify({'course_id': course_id}), 202
 
 
@@ -46,8 +45,11 @@ def similar_posts():
         raise InvalidUsage('Request body must be in JSON format', 500)
     if 'query' not in request.json:
         raise InvalidUsage('No query string found in parameters', 500)
+    if 'N' not in request.json:
+        N = 5
+    else:
+        N = int(request.json['N'])
 
-    N = int(request.json['N'])
     query = request.json['query']
     cid = request.json['cid']
     similar_posts = parqr.get_similar_posts(cid, query, N)
