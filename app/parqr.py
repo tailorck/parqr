@@ -22,14 +22,20 @@ class Parqr():
     def get_similar_posts(self, cid, query, N):
         """Get the N most similar posts to provided query.
 
-        Args:
-            cid: (string) The course id of the class found in the url
-            query: (str) A query string to perform comparison on
-            N: (int) The number of similar posts to return
+        Parameters
+        ----------
+        cid : str
+        	The course id of the class found in the url
+        query : str
+            A query string to perform comparison on
+        N : int
+            The number of similar posts to return
 
-        Returns:
-            top_posts: A sorted dict of the top N most similar posts with
-            their similarity scores (e.g. {1: 2.872, 2: 0.5284, ...})
+        Returns
+        -------
+        top_posts : dict
+            A sorted dict of the top N most similar posts with their similarity
+            scores as the keys
         """
         if self.verbose:
             self._logger.info('Retrieving similar posts for query: ' + query)
@@ -77,7 +83,19 @@ class Parqr():
         return top_posts
 
     def _get_posts_as_words(self, cid):
-        """Queries database for all posts within particular course"""
+        """Queries database for all posts within particular course
+
+        Parameters
+        ----------
+        cid : str
+        	The course id of the class found in the url
+
+        Returns
+        -------
+        words : np.array
+            A list of all the words found in the subject, body, and tags of
+            each post in the course.
+        """
         # TODO: Catch DoesNotExist exception for missing course
         course = Course.objects.get(cid=cid)
 
@@ -94,16 +112,20 @@ class Parqr():
         return np.array(words)
 
     def _vectorize_words(self, cid):
-        """Vectorizes the list of post words into a TFIDF Matrix
+        """Vectorizes he list of post words into a TF-IDF Matrix
 
-        Args:
-            cid: (string) The course id of the class found in the url
+        Parameters
+        ----------
+        cid : str
+        	The course id of the class found in the url
 
-        Returns:
-            vectorizer: (TfidfVectorizer) A vectorizer to transform word
-                strings to their TF-IDF vectors
-            tfidf_matrix: (scipy.sparse.csr_matrix) A matrix containing the
-                TF-IDF vectors of all the currently known posts
+        Returns
+        -------
+        vectorizer : TfidfVectorizer
+            The trained TF-IDF vectorizer object that can be used to convert
+            text to vectors.
+        tfidf_matrix : np.array
+            Tf-idf-weighted document-term matrix.
         """
         if self.verbose:
             self._logger.info('Vectorizing words from posts list')

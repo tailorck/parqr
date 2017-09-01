@@ -14,6 +14,14 @@ from .utils import read_credentials
 class Scraper():
 
     def __init__(self, logger=None):
+        """Initialize the Piazza object and login with the encrypted username
+        and password
+
+        Parameters
+        ----------
+        logger : logging.logger
+            The main logger used to communicate information back to the user
+        """
         self._piazza = Piazza()
         self._threads = {}
         if logger == None:
@@ -27,8 +35,10 @@ class Scraper():
     def pull_new_posts(self, course_id):
         """Creates a thread task to retrieve all new posts for a course
 
-        Args:
-            course_id: (string) The course id of the class to be updated
+        Parameters
+        ----------
+        course_id : str
+            The course id of the class to be updated
         """
         if course_id in self._threads and self._threads[course_id].is_alive():
             raise InvalidUsage('Background thread is running', 500)
@@ -43,10 +53,12 @@ class Scraper():
     def _pull_new_posts(self, course_id, network):
         """Retrieves all new posts in course that are not already in database
 
-        Args:
-            course_id: (string) The course id of the class to be updated
-            network: (piazza_api.network) A handle the network object for the
-                course
+        Parameters
+        ----------
+        course_id : str
+            The course id of the class to be updated
+        network : piazza_api.network
+            A handle to the network object for the course
         """
         if self._verbose:
             self._logger.info('Retrieving posts for: {}'.format(course_id))
@@ -90,14 +102,20 @@ class Scraper():
     def _extract_question_details(self, post):
         """Retrieves information pertaining to the question in the piazza post
 
-        Args:
-            post: (dict) An object including pertinent post information
-                retrieved from a piazza_api call
+        Parameters
+        ----------
+        post : dict
+            An object including  post information retrieved from a
+            piazza_api call
 
-        Returns:
-            subject: (string) The subject of the piazza post
-            parsed_body: (string) The body of the post without html tags
-            tags: (list) A list of tags or folders that the post belonged to
+        Returns
+        -------
+            subject : str
+                The subject of the piazza post
+            parsed_body : str
+                The body of the post without html tags
+            tags : list
+                A list of the tags or folders that the post belonged to
         """
         subject = post['history'][0]['subject']
         html_body = post['history'][0]['content']
@@ -106,6 +124,21 @@ class Scraper():
         return subject, parsed_body, tags
 
     def _extract_answers(self, post):
+        """Retrieves information pertaining to the answers of the piazza post
+
+        Parameters
+        ----------
+        post : dict
+            An object including the post information retrieved from a
+            piazza_api call
+
+        Returns
+        -------
+        s_answer : str
+            The student answer to the post if available (Default = None).
+        i_answer : str
+            The instructor answer to the post if available (Default = None).
+        """
         s_answer, i_answer = None, None
         for response in post['children'][:2]:
             if response['type'] == 's_answer':
@@ -118,6 +151,7 @@ class Scraper():
         return s_answer, i_answer
 
     def _login(self):
+        """Try to read the login file else prompt the user for manual login"""
         try:
             email, password = read_credentials()
             self._piazza.user_login(email, password)
@@ -136,6 +170,7 @@ class Scraper():
             self._logger.info('Ready to serve requests')
 
     def _login_with_input(self):
+        """Prompt the user to input username and password to login to Piazza"""
         while True:
             try:
                 self._piazza.user_login()

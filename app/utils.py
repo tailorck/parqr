@@ -4,27 +4,44 @@ from os.path import dirname, abspath, join
 
 
 def clean(string):
-    """Removes all punctuation and numbers from string before converting all
-    upper case characters to lower case
+    """Cleans an input string of nonessential characters for TF-IDF
 
-    Returns:
-        A string without punctuation and numbers with only lowercase letters
+    Removes all punctuation and numbers from string before converting all upper
+    case characters to lower case
+
+    Parameters
+    ----------
+    string : str
+    	The input string that needs cleaning
+
+    Returns
+    -------
+    cleaned_string : str
+        The cleaned version of input string
     """
     only_letters = re.sub('[^a-zA-Z]', ' ', string)
-    return only_letters.lower().strip()
+    cleaned_string = only_letters.lower().strip()
+    return cleaned_string
 
 
 def clean_and_split(string):
-    """Removes punctuation and numbers from string before converting all
-    characters to lower case and splitting the string into a list
+    """Cleans an input string of nonessential characters and converts to list
 
-    Retuns:
-        A list of the cleaned string
+    Parameters
+    ----------
+    string : str
+    	The input string that needs cleaning
+
+    Returns
+    -------
+    split_string : str
+        The cleaned string split up into a list by whitespace
     """
     return clean(string).split()
 
 
 def read_credentials():
+    """Method to read encrypted .login file for Piazza username and password"""
     curr_dir = dirname(abspath(__file__))
     key_file = join(curr_dir, '..', '.key.pem')
     login_file = join(curr_dir, '..', '.login')

@@ -2,8 +2,6 @@
 
 usage="Usage: sh run.sh < development | production >"
 
-leasot app/*.py -r markdown > app/README.md
-
 if [ $# -ne 1 ]; then
     echo $usage
 else
