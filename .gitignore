@@ -2,3 +2,4 @@
 *.pem
 .login
 logs/*
+*.pyc

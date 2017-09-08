@@ -26,14 +26,15 @@ chrome.extension.onMessage.addListener(function(request, sender, sendResponse) {
 		});
 	}, 5000);
 	*/
-	var url = "http://localhost:8000/api/similar_posts";
+	var host = "http://ec2-34-207-115-210.compute-1.amazonaws.com/"
+	var endpoint = host + "api/similar_posts";
 	var requestJson = {};
 	requestJson['query'] = request['words'];
 	requestJson['cid'] = request['cid'];
 	requestJson['N'] = 5;
 
 	var http = new XMLHttpRequest();
-	http.open("POST", url, true);
+	http.open("POST", endpoint, true);
 	http.setRequestHeader("Content-type", "application/json");
 
 	http.onreadystatechange = function() {
