@@ -1,7 +1,7 @@
 {
     "manifest_version": 2,
 
-    "name": "Piazza Autonomous Related Question Recommender",
+    "name": "PARQR",
     "description": "This extension finds posts in a Piazza class that are similar to the question you are about to post",
     "version": "1.0",
 
@@ -12,7 +12,7 @@
 
     "permissions": [
 	"activeTab",
-	"http://localhost:8000/*"
+	"http://ec2-34-207-115-210.compute-1.amazonaws.com/*"
     ],
 
     "background": {

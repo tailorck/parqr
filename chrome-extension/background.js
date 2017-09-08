@@ -26,7 +26,7 @@ chrome.extension.onMessage.addListener(function(request, sender, sendResponse) {
 		});
 	}, 5000);
 	*/
-	var url = "http://localhost:8000/api/similar_posts";
+	var url = "http://ec2-34-207-115-210.compute-1.amazonaws.com/api/similar_posts";
 	var requestJson = {};
 	requestJson['query'] = request['words'];
 	requestJson['cid'] = request['cid'];
