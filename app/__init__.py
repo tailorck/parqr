@@ -5,8 +5,8 @@ from logging.handlers import RotatingFileHandler
 from logging import Formatter
 import os
 
-formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] %(module)-10s: '
-                              '%(message)s')
+formatter = logging.Formatter('[%(asctime)s] %(levelname)-8s '
+                              '%(module)-10s: %(message)s')
 app = Flask(__name__)
 
 if 'APP_SETTINGS' in os.environ:

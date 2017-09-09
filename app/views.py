@@ -6,8 +6,8 @@ from app.scraper import Scraper
 
 api_endpoint = '/api/'
 
-parqr = Parqr(app.logger)
-scraper = Scraper(app.logger)
+parqr = Parqr(verbose=True)
+scraper = Scraper(verbose=True)
 
 
 @app.errorhandler(404)
