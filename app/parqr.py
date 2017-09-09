@@ -1,6 +1,5 @@
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction import text
-from nltk.corpus import stopwords
 from app.exception import InvalidUsage
 from app.models import Course, Post
 from app.utils import clean, clean_and_split
@@ -25,7 +24,7 @@ class Parqr():
         Parameters
         ----------
         cid : str
-        	The course id of the class found in the url
+            The course id of the class found in the url
         query : str
             A query string to perform comparison on
         N : int
@@ -88,7 +87,7 @@ class Parqr():
         Parameters
         ----------
         cid : str
-        	The course id of the class found in the url
+            The course id of the class found in the url
 
         Returns
         -------
@@ -117,7 +116,7 @@ class Parqr():
         Parameters
         ----------
         cid : str
-        	The course id of the class found in the url
+            The course id of the class found in the url
 
         Returns
         -------
@@ -129,8 +128,7 @@ class Parqr():
         """
         if self.verbose:
             self._logger.info('Vectorizing words from posts list')
-        nltk_stopwords = set(stopwords.words('english'))
-        stop_words = set(text.ENGLISH_STOP_WORDS.union(nltk_stopwords))
+        stop_words = set(text.ENGLISH_STOP_WORDS)
         vectorizer = text.TfidfVectorizer(analyzer='word',
                                           stop_words=stop_words)
 
