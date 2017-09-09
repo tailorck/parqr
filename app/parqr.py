@@ -5,16 +5,21 @@ from app.exception import InvalidUsage
 from app.models import Course, Post
 from app.utils import clean, clean_and_split
 import numpy as np
-import pdb
+import logging
 
 
 class Parqr():
-    def __init__(self, logger=None):
-        if logger is None:
-            self.verbose = False
-        else:
-            self.verbose = True
-            self._logger = logger
+    def __init__(self, verbose=False):
+        """Initializes private caching dictionaries.
+
+        Parameters
+        ----------
+        verbose : boolean
+        	A boolean to instruct module to output informative log statements.
+        """
+        self.verbose = verbose
+        if self.verbose == True:
+            self._logger = logging.getLogger('app')
         self._vectorizers = {}
         self._matrices = {}
         self._post_ids = {}
@@ -25,7 +30,7 @@ class Parqr():
         Parameters
         ----------
         cid : str
-        	The course id of the class found in the url
+            The course id of the class found in the url
         query : str
             A query string to perform comparison on
         N : int
@@ -38,7 +43,7 @@ class Parqr():
             scores as the keys
         """
         if self.verbose:
-            self._logger.info('Retrieving similar posts for query: ' + query)
+            self._logger.info('Retrieving similar posts for query.')
 
         # clean query vector
         clean_query = clean(query)
@@ -88,7 +93,7 @@ class Parqr():
         Parameters
         ----------
         cid : str
-        	The course id of the class found in the url
+            The course id of the class found in the url
 
         Returns
         -------
@@ -117,7 +122,7 @@ class Parqr():
         Parameters
         ----------
         cid : str
-        	The course id of the class found in the url
+            The course id of the class found in the url
 
         Returns
         -------
