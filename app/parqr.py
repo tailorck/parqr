@@ -80,7 +80,7 @@ class Parqr():
             subject = post.subject
             student_answer = True if post.s_answer != None else False
             instructor_answer = True if post.i_answer != None else False
-            if constants.THRESHOLD_SCORE < score:
+            if  score > constants.THRESHOLD_SCORE:
                 top_posts[score] = {'pid': pid,
                                     'subject': subject,
                                     's_answer': student_answer,
