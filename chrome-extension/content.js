@@ -57,9 +57,9 @@ function parsePiazzaText(curr_length) {
 
 				// Create a rounded box with the pid of the suggestion
 				var $pid_link = $('<button>').text('@' + pid).addClass("box");
-				if (s_answer_exists) {
+				if (i_answer_exists) {
 					$pid_link.addClass("box-yellow");
-				} else if (i_answer_exists) {
+				} else if (s_answer_exists) {
 					$pid_link.addClass("box-green");
 				} else {
 					$pid_link.addClass("box-blend");
