@@ -12,7 +12,7 @@
 
     "permissions": [
 	"activeTab",
-	"http://ec2-54-227-24-100.compute-1.amazonaws.com/*"
+	"http://ec2-34-207-115-210.compute-1.amazonaws.com/*"
     ],
 
     "background": {
