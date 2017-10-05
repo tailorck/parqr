@@ -26,7 +26,7 @@ chrome.extension.onMessage.addListener(function(request, sender, sendResponse) {
 		});
 	}, 5000);
 	*/
-	var host = "http://ec2-34-207-115-210.compute-1.amazonaws.com/"
+	var host = "http://ec2-54-227-24-100.compute-1.amazonaws.com/"
 	var endpoint = host + "api/similar_posts";
 	var requestJson = {};
 	requestJson['query'] = request['words'];
