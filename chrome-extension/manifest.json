@@ -3,7 +3,7 @@
 
     "name": "PARQR",
     "description": "This extension finds posts in a Piazza class that are similar to the question you are about to post",
-    "version": "1.0",
+    "version": "1.1",
 
     "browser_action": {
 	"default_icon": "parqr.png",
