@@ -2,8 +2,8 @@
     "manifest_version": 2,
 
     "name": "PARQR",
-    "description": "This extension finds posts in a Piazza class that are similar to the question you are about to post",
-    "version": "1.1",
+    "description": "Piazza Automated Related Question Recommender. PARQR recommends similar posts on Piazza to save you time!",
+    "version": "1.1.1",
 
     "browser_action": {
 	"default_icon": "parqr.png",
@@ -12,7 +12,7 @@
 
     "permissions": [
 	"activeTab",
-	"http://ec2-54-227-24-100.compute-1.amazonaws.com/*"
+	"http://*.amazonaws.com/*"
     ],
 
     "background": {
