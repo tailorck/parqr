@@ -5,7 +5,7 @@ from app.models import Course, Post
 from app.utils import clean, clean_and_split
 import numpy as np
 import logging
-
+import constants
 
 class Parqr():
     def __init__(self, verbose=False):
@@ -79,10 +79,11 @@ class Parqr():
             subject = post.subject
             student_answer = True if post.s_answer != None else False
             instructor_answer = True if post.i_answer != None else False
-            top_posts[score] = {'pid': pid,
-                                'subject': subject,
-                                's_answer': student_answer,
-                                'i_answer': instructor_answer}
+            if  score > constants.THRESHOLD_SCORE:
+                top_posts[score] = {'pid': pid,
+                                    'subject': subject,
+                                    's_answer': student_answer,
+                                    'i_answer': instructor_answer}
 
         return top_posts
 

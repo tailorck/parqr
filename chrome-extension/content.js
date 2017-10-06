@@ -27,6 +27,11 @@ function parsePiazzaText(curr_length) {
 	var words = getWords();
 	var new_length = words.length;
 
+	if(!words){
+ 	    words = "Piazza Automated Related Question Recommender";
+ 	    new_length = words.length;
+ 	}
+
 	if (new_length > 0 && Math.abs(new_length - curr_length) > SIGNIFICANT_DIFF) {
 		console.log('Sending: ' + words);
 		chrome.runtime.sendMessage({words: words, cid: cid}, function(response) {
@@ -57,9 +62,9 @@ function parsePiazzaText(curr_length) {
 
 				// Create a rounded box with the pid of the suggestion
 				var $pid_link = $('<button>').text('@' + pid).addClass("box");
-				if (s_answer_exists) {
+				if (i_answer_exists) {
 					$pid_link.addClass("box-yellow");
-				} else if (i_answer_exists) {
+				} else if (s_answer_exists) {
 					$pid_link.addClass("box-green");
 				} else {
 					$pid_link.addClass("box-blend");
