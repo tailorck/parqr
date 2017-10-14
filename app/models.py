@@ -1,5 +1,4 @@
 from app import db
-import pdb
 
 
 class Post(db.Document):
