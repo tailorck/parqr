@@ -11,6 +11,7 @@ from progressbar import ProgressBar
 from .exception import InvalidUsage
 from .models import Course, Post
 from .utils import read_credentials
+import pdb
 
 
 class Scraper():
@@ -92,6 +93,10 @@ class Scraper():
             # Extract the student and instructor answers if applicable
             s_answer, i_answer = self._extract_answers(post)
 
+            # Extract the followups and feedbacks if applicable
+            followups = self._extract_followups(post)
+            pdb.set_trace()
+
             # Create a new post and add it to the course
             mongo_post = Post(course_id, pid, subject, body, tags, s_answer,
                               i_answer).save()
@@ -140,7 +145,7 @@ class Scraper():
             The instructor answer to the post if available (Default = None).
         """
         s_answer, i_answer = None, None
-        for response in post['children'][:2]:
+        for response in post['children']:
             if response['type'] == 's_answer':
                 html_text = response['history'][0]['content']
                 s_answer = BeautifulSoup(html_text, 'html.parser').get_text()
@@ -149,6 +154,41 @@ class Scraper():
                 i_answer = BeautifulSoup(html_text, 'html.parser').get_text()
 
         return s_answer, i_answer
+
+    def _extract_followups(self, post):
+        """Retrieves information pertaining to the followups and feedbacks of the piazza post
+
+        Parameters
+        ----------
+        post : dict
+            An object including the post information retrieved from a
+            piazza_api call
+
+        Returns
+        -------
+        followups : list
+            The followup discussions for a post if available, which might
+            contain feedbacks as well (Default = []).
+        """
+        followups = []
+        for response in post['children']:
+
+            data = {}
+            if response['type'] == 'followup':
+                html_text = response['subject']
+                data['followup'] = BeautifulSoup(html_text, 'html.parser').get_text()
+
+                feedback = []
+                if response['children']:
+                    for activity in response['children']:
+                        html_text = activity['subject']
+                        feedback.append(BeautifulSoup(html_text, 'html.parser').get_text())
+
+                data['feedback'] = feedback
+
+                followups.append(data)
+
+        return followups
 
     def _login(self):
         """Try to read the login file else prompt the user for manual login"""
