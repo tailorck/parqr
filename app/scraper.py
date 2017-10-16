@@ -11,7 +11,6 @@ from progressbar import ProgressBar
 from .exception import InvalidUsage
 from .models import Course, Post
 from .utils import read_credentials
-import pdb
 
 
 class Scraper():
@@ -72,7 +71,7 @@ class Scraper():
         if not course:
             course = Course(course_id).save()
 
-        for pid in pbar(xrange(1, total_questions)):
+        for pid in pbar(xrange(1, total_questions+1)):
             # skip this post if it is already in the database
             if Post.objects(cid=course_id, pid=pid):
                 continue
@@ -95,11 +94,10 @@ class Scraper():
 
             # Extract the followups and feedbacks if applicable
             followups = self._extract_followups(post)
-            pdb.set_trace()
 
             # Create a new post and add it to the course
             mongo_post = Post(course_id, pid, subject, body, tags, s_answer,
-                              i_answer).save()
+                              i_answer, followups).save()
             course.update(add_to_set__posts=mongo_post)
 
         self._threads.pop(course_id)
@@ -156,7 +154,8 @@ class Scraper():
         return s_answer, i_answer
 
     def _extract_followups(self, post):
-        """Retrieves information pertaining to the followups and feedbacks of the piazza post
+        """Retrieves information pertaining to the followups and feedbacks of
+        the piazza post
 
         Parameters
         ----------
@@ -176,13 +175,15 @@ class Scraper():
             data = {}
             if response['type'] == 'followup':
                 html_text = response['subject']
-                data['followup'] = BeautifulSoup(html_text, 'html.parser').get_text()
+                soup = BeautifulSoup(html_text, 'html.parser')
+                data['followup'] = soup.get_text()
 
                 feedback = []
                 if response['children']:
                     for activity in response['children']:
                         html_text = activity['subject']
-                        feedback.append(BeautifulSoup(html_text, 'html.parser').get_text())
+                        soup = BeautifulSoup(html_text, 'html.parser')
+                        feedback.append(soup.get_text())
 
                 data['feedback'] = feedback
 

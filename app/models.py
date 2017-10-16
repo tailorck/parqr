@@ -2,6 +2,11 @@ from app import db
 import pdb
 
 
+class Followup(db.EmbeddedDocument):
+    followup = db.StringField(required=True)
+    feedback = db.ListField(db.StringField())
+
+
 class Post(db.Document):
     cid = db.StringField(required=True)
     pid = db.IntField(required=True, unique_with='cid')
@@ -10,6 +15,7 @@ class Post(db.Document):
     tags = db.ListField(db.StringField(), requred=True)
     s_answer = db.StringField()
     i_answer = db.StringField()
+    followups = db.ListField(db.EmbeddedDocumentField(Followup))
 
     def __str__(self):
         return '<{}: id={!r}>'.format(type(self).__name__, self.id)
