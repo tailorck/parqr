@@ -20,6 +20,7 @@ while getopts ":dpt" opt; do
             gunicorn app.api:app --reload --log-level DEBUG --timeout 300
             ;;
         \?)
+            OPTION="?"
             echo $usage
             ;;
     esac
