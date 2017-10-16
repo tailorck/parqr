@@ -10,4 +10,4 @@ body, and tags of a new post.
 
 To run the API, use the run script:
 
-    sh run.sh < development | production >
+    bash run.sh < -d | -p | -t >
