@@ -71,7 +71,7 @@ class Scraper():
         if not course:
             course = Course(course_id).save()
 
-        for pid in pbar(xrange(1, total_questions)):
+        for pid in pbar(xrange(1, total_questions+1)):
             # skip this post if it is already in the database
             if Post.objects(cid=course_id, pid=pid):
                 continue
@@ -92,9 +92,12 @@ class Scraper():
             # Extract the student and instructor answers if applicable
             s_answer, i_answer = self._extract_answers(post)
 
+            # Extract the followups and feedbacks if applicable
+            followups = self._extract_followups(post)
+
             # Create a new post and add it to the course
             mongo_post = Post(course_id, pid, subject, body, tags, s_answer,
-                              i_answer).save()
+                              i_answer, followups).save()
             course.update(add_to_set__posts=mongo_post)
 
         self._threads.pop(course_id)
@@ -140,7 +143,7 @@ class Scraper():
             The instructor answer to the post if available (Default = None).
         """
         s_answer, i_answer = None, None
-        for response in post['children'][:2]:
+        for response in post['children']:
             if response['type'] == 's_answer':
                 html_text = response['history'][0]['content']
                 s_answer = BeautifulSoup(html_text, 'html.parser').get_text()
@@ -149,6 +152,44 @@ class Scraper():
                 i_answer = BeautifulSoup(html_text, 'html.parser').get_text()
 
         return s_answer, i_answer
+
+    def _extract_followups(self, post):
+        """Retrieves information pertaining to the followups and feedbacks of
+        the piazza post
+
+        Parameters
+        ----------
+        post : dict
+            An object including the post information retrieved from a
+            piazza_api call
+
+        Returns
+        -------
+        followups : list
+            The followup discussions for a post if available, which might
+            contain feedbacks as well (Default = []).
+        """
+        followups = []
+        for response in post['children']:
+
+            data = {}
+            if response['type'] == 'followup':
+                html_text = response['subject']
+                soup = BeautifulSoup(html_text, 'html.parser')
+                data['followup'] = soup.get_text()
+
+                feedback = []
+                if response['children']:
+                    for activity in response['children']:
+                        html_text = activity['subject']
+                        soup = BeautifulSoup(html_text, 'html.parser')
+                        feedback.append(soup.get_text())
+
+                data['feedback'] = feedback
+
+                followups.append(data)
+
+        return followups
 
     def _login(self):
         """Try to read the login file else prompt the user for manual login"""
