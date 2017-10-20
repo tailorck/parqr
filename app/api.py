@@ -35,7 +35,7 @@ def update_course():
         raise InvalidUsage('Course ID not found in JSON', 400)
 
     course_id = request.json['course_id']
-    scraper.pull_new_posts(course_id)
+    scraper.update_posts(course_id)
     return jsonify({'course_id': course_id}), 202
 
 

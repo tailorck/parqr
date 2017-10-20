@@ -91,3 +91,12 @@ def read_credentials():
         password_bytes = f.read(128)
 
     return key.decrypt(email_bytes), key.decrypt(password_bytes)
+
+
+def stringify_followups(followup_list):
+    return_list = []
+    for followup in followup_list:
+        return_list.append(followup['text'])
+        return_list += followup['responses']
+
+    return ' '.join(return_list)
