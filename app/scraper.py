@@ -114,7 +114,8 @@ class Scraper():
 
         end_time = time.time()
         time_elapsed = end_time - start_time
-        self._logger.info('Course updated in: {:.2f}s'.format(time_elapsed))
+        self._logger.info('Course updated. {} posts scraped in: r'
+                          '{:.2f}s'.format(total_questions, time_elapsed))
         self._threads.pop(course_id)
 
     def _check_for_updates(self, curr_post, new_fields):

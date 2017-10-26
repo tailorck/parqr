@@ -58,5 +58,5 @@ def similar_posts():
 
     query = request.json['query']
     cid = request.json['cid']
-    similar_posts = parqr.get_similar_posts(cid, query, N)
+    similar_posts = parqr.get_recommendations(cid, query, N)
     return jsonify(similar_posts)

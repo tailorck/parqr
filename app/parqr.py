@@ -1,20 +1,28 @@
+from enum import Enum
+import pdb
+import logging
+
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction import text
+import numpy as np
+import pandas as pd
+
 from app.exception import InvalidUsage
 from app.models import Course, Post
-from app.utils import clean, clean_and_split
-import numpy as np
-import logging
+from app.utils import clean, clean_and_split, stringify_followups
+from constants import TFIDF_MODELS
 import constants
 
+
 class Parqr():
+
     def __init__(self, verbose=False):
         """Initializes private caching dictionaries.
 
         Parameters
         ----------
         verbose : boolean
-        	A boolean to instruct module to output informative log statements.
+            A boolean to instruct module to output informative log statements.
         """
         self.verbose = verbose
         if self.verbose == True:
@@ -23,7 +31,7 @@ class Parqr():
         self._matrices = {}
         self._post_ids = {}
 
-    def get_similar_posts(self, cid, query, N):
+    def get_recommendations(self, cid, query, N):
         """Get the N most similar posts to provided query.
 
         Parameters
@@ -47,76 +55,69 @@ class Parqr():
         # clean query vector
         clean_query = clean(query)
 
-        # retrieve the appropriate vectorizer and pre-computed TF-IDF Matrix
-        # for this course, or create new ones if they do not exist
-        if cid not in self._vectorizers or cid not in self._matrices:
-            vectorizer, tfidf_matrix = self._vectorize_words(cid)
-        else:
-            vectorizer = self._vectorizers[cid]
-            tfidf_matrix = self._matrices[cid]
+        tfidf_scores = self._get_tfidf_recommendations(cid, query, N)
+        weights = pd.DataFrame([0.4, 0.2, 0.2, 0.2], index=list(TFIDF_MODELS))
 
-        # the transform method takes an iterable as input. Tthe string does not
-        # need to be tokenized, just placed in a list
-        q_vector = vectorizer.transform([clean_query])
-
-        # calculate the similarity score for query with all vectors in matrix
-        scores = cosine_similarity(q_vector, tfidf_matrix)[0]
-
-        # retrieve the index of the vectors with the highest similarity.
-        # np.argsort naturally sorts in ascending order, so the list must be
-        # reversed and the top N most similar posts are stored
-        top_N_vector_indices = np.argsort(scores)[::-1][:N]
-
-        # the index of the vector in the matrix does not directly correspond to
-        # the pid of the associated post, so the vector indices must be mapped
-        # to course post ids
-        top_N_pids = self._post_ids[cid][top_N_vector_indices]
+        final_scores = tfidf_scores.dot(weights)
+        final_scores.sort([0], ascending=False, inplace=True)
 
         # Return post id, subject, and score
         top_posts = {}
-        for pid, score in zip(top_N_pids, scores[top_N_vector_indices]):
-            post = Post.objects(cid=cid, pid=pid)[0]
+        for pid in final_scores.index[:N]:
+            post = Post.objects.get(cid=cid, pid=pid)
+            score = final_scores.loc[pid][0]
             subject = post.subject
-            student_answer = True if post.s_answer != None else False
-            instructor_answer = True if post.i_answer != None else False
-            if  score > constants.THRESHOLD_SCORE:
+            stud_answer = True if post.s_answer != None else False
+            inst_answer = True if post.i_answer != None else False
+
+            if score > constants.SCORE_THRESHOLD:
                 top_posts[score] = {'pid': pid,
                                     'subject': subject,
-                                    's_answer': student_answer,
-                                    'i_answer': instructor_answer}
+                                    's_answer': stud_answer,
+                                    'i_answer': inst_answer}
 
         return top_posts
 
-    def _get_posts_as_words(self, cid):
-        """Queries database for all posts within particular course
+    def _get_tfidf_recommendations(self, cid, query, N):
+        all_pids = self._get_all_pids(cid)
+        tfidf_scores = pd.DataFrame(index=all_pids)
+        for model in TFIDF_MODELS:
+            # retrieve the appropriate vectorizer and pre-computed TF-IDF
+            # Matrix # for this course, or create new ones if they do not exist
+            if cid not in self._vectorizers or cid not in self._matrices:
+                self._vectorize_posts(cid)
 
-        Parameters
-        ----------
-        cid : str
-            The course id of the class found in the url
+            vectorizer = self._vectorizers[cid][model]
+            matrix = self._matrices[cid][model]
 
-        Returns
-        -------
-        words : np.array
-            A list of all the words found in the subject, body, and tags of
-            each post in the course.
-        """
-        # TODO: Catch DoesNotExist exception for missing course
-        course = Course.objects.get(cid=cid)
+            if vectorizer is None or matrix is None:
+                tfidf_scores.loc[all_pids, model] = np.zeros(len(all_pids))
+                continue
 
-        words = []
-        pids = []
-        for post in course.posts:
-            pids.append(post.pid)
-            clean_subject = clean_and_split(post.subject)
-            clean_body = clean_and_split(post.body)
-            tags = post.tags
-            words.append(' '.join(clean_subject + clean_body + tags))
+            # the transform method takes an iterable as input. The string does
+            # not need to be tokenized, just placed in a list
+            q_vector = vectorizer.transform([query])
 
-        self._post_ids[cid] = np.array(pids)
-        return np.array(words)
+            # calculate the similarity score for query with all vectors in
+            # matrix
+            scores = cosine_similarity(q_vector, matrix)[0]
 
-    def _vectorize_words(self, cid):
+            # retrieve the index of the vectors with the highest similarity.
+            # np.argsort naturally sorts in ascending order, so the list must
+            # be reversed and the top N most similar posts are stored
+            top_N_vector_indices = np.argsort(scores)[::-1][:N]
+
+            # the index of the vector in the matrix does not directly
+            # correspond to the pid of the associated post, so the vector
+            # indices must be mapped to course post ids
+            top_N_pids = self._post_ids[cid][model][top_N_vector_indices]
+
+            tfidf_scores.loc[top_N_pids, model] = scores[top_N_vector_indices]
+
+        tfidf_scores.fillna(0, inplace=True)
+        return tfidf_scores
+
+    def _vectorize_posts(self, cid):
         """Vectorizes he list of post words into a TF-IDF Matrix
 
         Parameters
@@ -134,17 +135,67 @@ class Parqr():
         """
         if self.verbose:
             self._logger.info('Vectorizing words from posts list')
+
         stop_words = set(text.ENGLISH_STOP_WORDS)
-        vectorizer = text.TfidfVectorizer(analyzer='word',
-                                          stop_words=stop_words)
 
-        post_words = self._get_posts_as_words(cid)
-        tfidf_matrix = vectorizer.fit_transform(post_words)
+        for model in TFIDF_MODELS:
+            words = self._get_words_for_model(cid, model)
 
-        self._vectorizers[cid] = vectorizer
-        self._matrices[cid] = tfidf_matrix
+            if words.size != 0:
+                vectorizer = text.TfidfVectorizer(analyzer='word',
+                                                  stop_words=stop_words)
+                matrix = vectorizer.fit_transform(words)
+            else:
+                vectorizer = None
+                matrix = None
+
+            if cid not in self._vectorizers or cid not in self._matrices:
+                self._vectorizers[cid] = {}
+                self._matrices[cid] = {}
+
+            self._vectorizers[cid][model] = vectorizer
+            self._matrices[cid][model] = matrix
 
         if self.verbose:
             self._logger.info('Finished Vectorizing')
 
-        return vectorizer, tfidf_matrix
+        return self._vectorizers[cid], self._matrices[cid]
+
+    def _get_words_for_model(self, cid, model):
+        words = []
+        model_pid_list = []
+
+        for post in Post.objects(cid=cid):
+            if model == TFIDF_MODELS.POST:
+                clean_subject = clean_and_split(post.subject)
+                clean_body = clean_and_split(post.body)
+                tags = post.tags
+                words.append(' '.join(clean_subject + clean_body + tags))
+                model_pid_list.append(post.pid)
+            elif model == TFIDF_MODELS.I_ANSWER:
+                if post.i_answer:
+                    words.append(' '.join(clean_and_split(post.i_answer)))
+                    model_pid_list.append(post.pid)
+            elif model == TFIDF_MODELS.S_ANSWER:
+                if post.s_answer:
+                    words.append(' '.join(clean_and_split(post.s_answer)))
+                    model_pid_list.append(post.pid)
+            elif model == TFIDF_MODELS.FOLLOWUP:
+                if post.followups:
+                    followup_str = stringify_followups(post.followups)
+                    words.append(' '.join(clean_and_split(followup_str)))
+                    model_pid_list.append(post.pid)
+
+        if cid not in self._post_ids:
+            self._post_ids[cid] = {}
+
+        self._post_ids[cid][model] = np.array(model_pid_list)
+
+        return np.array(words)
+
+    def _get_all_pids(self, cid):
+        pids = []
+        for post in Post.objects(cid=cid):
+            pids.append(post.pid)
+
+        return pids
