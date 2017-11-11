@@ -1,6 +1,8 @@
 from enum import Enum
-import pdb
+from multiprocessing.dummy import Pool as ThreadPool
+from functools import partial
 import logging
+import pdb
 
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction import text
@@ -59,7 +61,8 @@ class Parqr():
         weights = pd.DataFrame([0.4, 0.2, 0.2, 0.2], index=list(TFIDF_MODELS))
 
         final_scores = tfidf_scores.dot(weights)
-        final_scores.sort([0], ascending=False, inplace=True)
+        final_scores.columns = ['scores']
+        final_scores.sort_values(by=['scores'], ascending=False, inplace=True)
 
         # Return post id, subject, and score
         top_posts = {}
@@ -136,30 +139,35 @@ class Parqr():
         if self.verbose:
             self._logger.info('Vectorizing words from posts list')
 
-        stop_words = set(text.ENGLISH_STOP_WORDS)
-
-        for model in TFIDF_MODELS:
-            words = self._get_words_for_model(cid, model)
-
-            if words.size != 0:
-                vectorizer = text.TfidfVectorizer(analyzer='word',
-                                                  stop_words=stop_words)
-                matrix = vectorizer.fit_transform(words)
-            else:
-                vectorizer = None
-                matrix = None
-
-            if cid not in self._vectorizers or cid not in self._matrices:
-                self._vectorizers[cid] = {}
-                self._matrices[cid] = {}
-
-            self._vectorizers[cid][model] = vectorizer
-            self._matrices[cid][model] = matrix
+        pool = ThreadPool(4)
+        func = partial(self._create_model, cid)
+        results = pool.map(func, list(TFIDF_MODELS))
+        pool.close()
+        pool.join()
 
         if self.verbose:
             self._logger.info('Finished Vectorizing')
 
         return self._vectorizers[cid], self._matrices[cid]
+
+    def _create_model(self, cid, model):
+        stop_words = set(text.ENGLISH_STOP_WORDS)
+        words = self._get_words_for_model(cid, model)
+
+        if words.size != 0:
+            vectorizer = text.TfidfVectorizer(analyzer='word',
+                                              stop_words=stop_words)
+            matrix = vectorizer.fit_transform(words)
+        else:
+            vectorizer = None
+            matrix = None
+
+        if cid not in self._vectorizers or cid not in self._matrices:
+            self._vectorizers[cid] = {}
+            self._matrices[cid] = {}
+
+        self._vectorizers[cid][model] = vectorizer
+        self._matrices[cid][model] = matrix
 
     def _get_words_for_model(self, cid, model):
         words = []

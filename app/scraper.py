@@ -9,9 +9,9 @@ from piazza_api import Piazza
 from piazza_api.exceptions import AuthenticationError, RequestError
 from progressbar import ProgressBar
 
-from .exception import InvalidUsage
-from .models import Course, Post
-from .utils import read_credentials, stringify_followups
+from exception import InvalidUsage
+from models import Course, Post
+from utils import read_credentials, stringify_followups
 
 
 class Scraper():
@@ -114,7 +114,7 @@ class Scraper():
 
         end_time = time.time()
         time_elapsed = end_time - start_time
-        self._logger.info('Course updated. {} posts scraped in: r'
+        self._logger.info('Course updated. {} posts scraped in: '
                           '{:.2f}s'.format(total_questions, time_elapsed))
         self._threads.pop(course_id)
 
