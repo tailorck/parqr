@@ -1,5 +1,5 @@
 from enum import Enum
-from multiprocessing.dummy import Pool as ThreadPool
+from multiprocessing.dummy import Pool
 from functools import partial
 import logging
 import pdb
@@ -139,7 +139,7 @@ class Parqr():
         if self.verbose:
             self._logger.info('Vectorizing words from posts list')
 
-        pool = ThreadPool(4)
+        pool = Pool(4)
         func = partial(self._create_model, cid)
         results = pool.map(func, list(TFIDF_MODELS))
         pool.close()
@@ -148,7 +148,7 @@ class Parqr():
         if self.verbose:
             self._logger.info('Finished Vectorizing')
 
-        return self._vectorizers[cid], self._matrices[cid]
+        return pool
 
     def _create_model(self, cid, model):
         stop_words = set(text.ENGLISH_STOP_WORDS)
