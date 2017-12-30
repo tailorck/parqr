@@ -116,6 +116,11 @@ class ModelCache(object):
     def __init__(self, cache_path):
         self.cache_path = cache_path
 
+        if not os.path.isdir(cache_path):
+            logger.warn('Resource path does not exist. Creating {}'
+                        .format(cache_path))
+            os.mkdir(cache_path)
+
     def _get_cid_dir(self, cid):
         return os.path.join(self.cache_path, cid)
 
