@@ -5,9 +5,9 @@ import logging
 import numpy as np
 from sklearn.feature_extraction import text
 
-from app.constants import TFIDF_MODELS
-from app.models import Post, Course
-from app.utils import clean_and_split, stringify_followups, ModelCache
+from constants import TFIDF_MODELS
+from models import Post, Course
+from utils import clean_and_split, stringify_followups, ModelCache
 
 
 class ModelTrain(object):
@@ -24,7 +24,11 @@ class ModelTrain(object):
         self.model_cache = ModelCache('app/resources')
         self.logger = logging.getLogger('app')
 
-    def persist_models(self, cid):
+    def persist_all_models(self):
+        for course in Course.objects():
+            self.persist_model(course.cid)
+
+    def persist_model(self, cid):
         """Vectorizes the information in database into multiple TF-IDF models.
         The models are persisted by pickling the TF-IDF sklearn models,
         storing the sparse vector matrix as a npz file, and saving the
@@ -33,6 +37,7 @@ class ModelTrain(object):
         Args:
             cid: The course id of the class to vectorize
         """
+        # TODO: Catch invalid cid
         self.logger.info('Vectorizing words from course: {}'.format(cid))
 
         pool = Pool(4)
@@ -97,9 +102,3 @@ class ModelTrain(object):
                     model_pid_list.append(post.pid)
 
         return np.array(words), np.array(model_pid_list)
-
-
-if __name__ == "__main__":
-    modeltrain = ModelTrain()
-    for course in Course.objects():
-        modeltrain.persist_models(course.cid)

@@ -142,6 +142,13 @@ class ModelCache(object):
         pid_list_dir = self._ensure_dir(cid)
         np.savetxt(os.path.join(pid_list_dir, pid_list_fn), pid_list)
 
+    def get_all_objects(self, cid, name):
+        model = self.get_model(cid, name)
+        matrix = self.get_matrix(cid, name)
+        pid_list = self.get_pid_list(cid, name)
+
+        return model, matrix, pid_list
+
     def get_model(self, cid, name):
         model_fn = self.model_fn_format.format(name)
         model_dir = self._get_cid_dir(cid)
@@ -151,8 +158,8 @@ class ModelCache(object):
         if os.path.isfile(model_file):
             model = joblib.load(model_file, 'r')
         else:
-            logger.error('Model for cid {} with name {} not '
-                         'found'.format(cid, name))
+            logger.error("Model for cid '{}' with name '{}' not "
+                         "found".format(cid, name))
             model = None
 
         return model
@@ -166,8 +173,8 @@ class ModelCache(object):
         if os.path.isfile(matrix_file):
             matrix = load_npz(matrix_file)
         else:
-            logger.error('matrix for cid {} with name {} not '
-                         'found'.format(cid, name))
+            logger.error("matrix for cid '{}' with name '{}' not "
+                         "found".format(cid, name))
             matrix = None
 
         return matrix
@@ -179,10 +186,10 @@ class ModelCache(object):
 
         # TODO: Catch errors around file getters
         if os.path.isfile(pid_list_file):
-            pid_list = joblib.load(pid_list_file, 'r')
+            pid_list = np.loadtxt(pid_list_file)
         else:
-            logger.error('pid list for cid {} with name {} not '
-                         'found'.format(cid, name))
+            logger.error("pid list for cid '{}' with name '{}' not "
+                         "found".format(cid, name))
             pid_list = None
 
         return pid_list

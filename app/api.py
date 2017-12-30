@@ -1,4 +1,5 @@
 from app import app
+from app.modeltrain import ModelTrain
 from exception import InvalidUsage
 from flask import jsonify, make_response, request
 from parqr import Parqr
@@ -8,6 +9,7 @@ api_endpoint = '/api/'
 
 parqr = Parqr(verbose=True)
 scraper = Scraper(verbose=True)
+model_train = ModelTrain()
 
 
 @app.errorhandler(404)
@@ -23,6 +25,28 @@ def handle_invalid_usage(error):
 @app.route('/')
 def index():
     return "Hello, World!"
+
+
+@app.route(api_endpoint + 'train_all_models', methods=['POST'])
+def train_all_models():
+    model_train.persist_all_models()
+
+    return jsonify({'msg': 'training all models'}), 202
+
+
+@app.route(api_endpoint + 'train_model', methods=['POST'])
+def train_model():
+    if request.get_data() == '':
+        raise InvalidUsage('No request body provided', 400)
+    if not request.json:
+        raise InvalidUsage('Request body must be in JSON format', 400)
+    if 'course_id' not in request.json:
+        raise InvalidUsage('Course ID not found in JSON', 400)
+
+    cid = request.json['course_id']
+    model_train.persist_model(cid)
+
+    return jsonify({'course_id': cid}), 202
 
 
 @app.route(api_endpoint + 'course', methods=['POST'])
