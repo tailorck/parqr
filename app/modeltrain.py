@@ -1,10 +1,12 @@
-from functools import partial
 from multiprocessing.dummy import Pool
+from functools import partial
+from threading import Thread
 import logging
 
 import numpy as np
 from sklearn.feature_extraction import text
 
+from app.exception import InvalidUsage
 from constants import TFIDF_MODELS
 from models import Post, Course
 from utils import clean_and_split, stringify_followups, ModelCache
@@ -23,12 +25,20 @@ class ModelTrain(object):
         self.verbose = verbose
         self.model_cache = ModelCache('app/resources')
         self.logger = logging.getLogger('app')
+        self._threads = {}
 
     def persist_all_models(self):
         for course in Course.objects():
             self.persist_model(course.cid)
 
     def persist_model(self, cid):
+        if cid in self._threads and self._threads[cid].is_alive():
+            raise InvalidUsage('Background thread is running', 500)
+
+        self._threads[cid] = Thread(target=self._persist_model, args=(cid,))
+        self._threads[cid].start()
+
+    def _persist_model(self, cid):
         """Vectorizes the information in database into multiple TF-IDF models.
         The models are persisted by pickling the TF-IDF sklearn models,
         storing the sparse vector matrix as a npz file, and saving the
