@@ -1,8 +1,8 @@
 from app import app
-from app.exception import InvalidUsage
+from exception import InvalidUsage
 from flask import jsonify, make_response, request
-from app.parqr import Parqr
-from app.scraper import Scraper
+from parqr import Parqr
+from scraper import Scraper
 
 api_endpoint = '/api/'
 
