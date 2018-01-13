@@ -12,7 +12,9 @@
 
     "permissions": [
 	"activeTab",
-	"http://*.amazonaws.com/*"
+	"http://*.amazonaws.com/*",
+    "http://*.piazza.com/*",
+    "cookies"
     ],
 
     "background": {
