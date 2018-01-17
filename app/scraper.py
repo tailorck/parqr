@@ -14,20 +14,13 @@ from utils import read_credentials, stringify_followups
 
 class Scraper():
 
-    def __init__(self, verbose=False):
+    def __init__(self):
         """Initialize the Piazza object and login with the encrypted username
         and password
-
-        Parameters
-        ----------
-        verbose : boolean
-            A boolean to instruct module to output informative log statements
         """
         self._piazza = Piazza()
         self._threads = {}
-        self.verbose = verbose
-        if self.verbose == True:
-            self._logger = logging.getLogger('app')
+        self._logger = logging.getLogger('app')
 
         self._login()
 
@@ -50,6 +43,15 @@ class Scraper():
         self._threads[course_id].start()
 
     def _update_posts(self, course_id, network):
+        """
+
+        Args:
+            course_id:
+            network:
+
+        Returns:
+
+        """
         """Retrieves all new posts in course that are not already in database
         and updates old posts that have been modified
 
@@ -60,8 +62,7 @@ class Scraper():
         network : piazza_api.network
             A handle to the network object for the course
         """
-        if self.verbose:
-            self._logger.info('Retrieving posts for: {}'.format(course_id))
+        self._logger.info('Retrieving posts for: {}'.format(course_id))
         stats = network.get_statistics()
         total_questions = stats['total']['questions']
         pbar = ProgressBar(maxval=total_questions)
@@ -242,18 +243,15 @@ class Scraper():
             email, password = read_credentials()
             self._piazza.user_login(email, password)
         except IOError:
-            if self.verbose:
-                self._logger.error("File not found. Use encrypt_login.py to "
+            self._logger.error("File not found. Use encrypt_login.py to "
                                    "create encrypted password store")
             self._login_with_input()
         except UnicodeDecodeError, AuthenticationError:
-            if self.verbose:
-                self._logger.error("Incorrect Email/Password found in "
-                                   "encryptedfile store")
+            self._logger.error("Incorrect Email/Password found in "
+                                   "encrypted file store")
             self._login_with_input()
 
-        if self.verbose:
-            self._logger.info('Ready to serve requests')
+        self._logger.info('Ready to serve requests')
 
     def _login_with_input(self):
         """Prompt the user to input username and password to login to Piazza"""
@@ -262,6 +260,5 @@ class Scraper():
                 self._piazza.user_login()
                 break
             except AuthenticationError:
-                if self.verbose:
-                    self._logger.error('Invalid Username/Password')
+                self._logger.error('Invalid Username/Password')
                 continue

@@ -7,8 +7,8 @@ from scraper import Scraper
 
 api_endpoint = '/api/'
 
-parqr = Parqr(verbose=True)
-scraper = Scraper(verbose=True)
+parqr = Parqr()
+scraper = Scraper()
 model_train = ModelTrain()
 
 
@@ -65,8 +65,6 @@ def update_course():
 
 @app.route(api_endpoint + 'similar_posts', methods=['POST'])
 def similar_posts():
-    # localhost:5000/api/v1.0/similar_posts&keywords=hey&keywords=hi
-    # sample_post['keywords'] = request.args.getlist('keywords')
     if request.get_data() == '':
         raise InvalidUsage('No request body provided', 400)
     if not request.json:
