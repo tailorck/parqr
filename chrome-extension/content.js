@@ -10,11 +10,11 @@ $(document).ready(function() {
 	$("#new_post_button").click(newButtonClick);
 });
 
-// console.log('content script loaded')
+var DEBOUNCE_IN_MS = 300
 
 function newButtonClick(e) {
 	$("#post_summary").parent().append(recommendations_html)
-	$('#post_summary').keyup(debounce(300, parsePiazzaText))
+	$('#post_summary').keyup(debounce(DEBOUNCE_IN_MS, parsePiazzaText))
 }
 
 function parsePiazzaText() {
