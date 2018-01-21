@@ -1,53 +1,41 @@
 recommendations_html = `
-	<div id="recommendations">
+	<div id="parqr-recommendations">
 		<b>These posts may already have your answer:</b>
 		<ul id="rec_link_list">
 		</ul>
-	</div>
-	`;
+	</div>`
 
-
-SIGNIFICANT_DIFF = 5;
 
 $(document).ready(function() {
 	$("#new_post_button").click(newButtonClick);
 });
 
-console.log('content script loaded')
+// console.log('content script loaded')
 
 function newButtonClick(e) {
-	var curr_length = 0;
-	setInterval(function() {
-		curr_length = parsePiazzaText(curr_length);
-	}, 1000);
+	$("#post_summary").parent().append(recommendations_html)
+	$('#post_summary').keyup(debounce(300, parsePiazzaText))
 }
 
-function parsePiazzaText(curr_length) {
+function parsePiazzaText() {
 	var cid = getCourseId();
 	var words = getWords();
-	var new_length = words.length;
 
-	if(!words){
- 	    words = "Piazza Automated Related Question Recommender";
- 	    new_length = words.length;
- 	}
-
-	if (new_length > 0 && Math.abs(new_length - curr_length) > SIGNIFICANT_DIFF) {
+	// If works is empty, don't send anything back but clear the list
+	if (!words) {
+		clearSuggestions();
+	}
+	else {
 		console.log('Sending: ' + words);
 		chrome.runtime.sendMessage({words: words, cid: cid}, function(response) {
 			if (!response) {
 				return curr_length;
 			}
 			response = JSON.parse(response);
+			clearSuggestions()
 			
-			// Insert the recommendation template if it is not already there
-			if ($("#recommendations").length == 0) {
-				$(".right_section")[3].innerHTML += recommendations_html;
-			}
-
 			// Grab a handle to the links div and remove the previous links
 			var $rec_link_list = $("#rec_link_list") 
-			$rec_link_list[0].innerHTML = "";
 		
 			// Insert recommendations into template in order of best score
 			var sorted_scores = Object.keys(response).sort().reverse();
@@ -79,9 +67,12 @@ function parsePiazzaText(curr_length) {
 				$rec_link_list.append($('<li>').html('{0}{1}'.format(pid_html, subject_html)));
 			}
 		});
-		return new_length;
 	}
-	return curr_length;	
+}
+
+function clearSuggestions() {
+	$("#rec_link_list").empty()
+	
 }
 
 function getCourseId() {
@@ -139,4 +130,14 @@ if (!String.prototype.format) {
       ;
     });
   };
+}
+
+// Given a delay function and a callback, debounces a function for that amount of time.
+function debounce(delay, callback) {
+	var timeout;
+	return function() {
+		console.log("debounce")
+		clearTimeout(timeout)
+		timeout = setTimeout(callback, delay)
+	}
 }
