@@ -4,33 +4,31 @@ import os
 
 import pytest
 
+print 'in test_api.py'
 
 @pytest.fixture
-def testing_env():
-    assert os.environ['FLASK_CONF'] == 'testing'
-
-
-@pytest.fixture
-def client(testing_env):
+def client():
     from app import api
     client = api.app.test_client()
     return client
 
 
 @pytest.fixture
-def Post(testing_env):
+def Post():
     from app.models import Post
+    Post.drop_collection()
     return Post
 
 
 @pytest.fixture
-def Course(testing_env):
+def Course():
     from app.models import Course
+    Course.drop_collection()
     return Course
 
 
 @pytest.fixture
-def dummy_db(client, testing_env):
+def dummy_db(client):
     payload = dict(course_id='j8rf9vx65vl23t')
     client.post('/api/course', data=json.dumps(payload),
                 content_type='application/json')
