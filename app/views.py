@@ -27,15 +27,13 @@ def index():
 
 @app.route(api_endpoint + 'course', methods=['POST'])
 def update_course():
-    if request.get_data() == '':
-        raise InvalidUsage('No request body provided', 400)
     if not request.json:
-        raise InvalidUsage('Request body must be in JSON format', 400)
+        raise InvalidUsage('Request body must be in JSON format', 500)
     if 'course_id' not in request.json:
-        raise InvalidUsage('Course ID not found in JSON', 400)
+        raise InvalidUsage('Course ID not found in JSON', 500)
 
     course_id = request.json['course_id']
-    scraper.update_posts(course_id)
+    scraper.pull_new_posts(course_id)
     return jsonify({'course_id': course_id}), 202
 
 
@@ -43,14 +41,10 @@ def update_course():
 def similar_posts():
     # localhost:5000/api/v1.0/similar_posts&keywords=hey&keywords=hi
     # sample_post['keywords'] = request.args.getlist('keywords')
-    if request.get_data() == '':
-        raise InvalidUsage('No request body provided', 400)
     if not request.json:
-        raise InvalidUsage('Request body must be in JSON format', 400)
+        raise InvalidUsage('Request body must be in JSON format', 500)
     if 'query' not in request.json:
-        raise InvalidUsage('No query string found in parameters', 400)
-    if 'cid' not in request.json:
-        raise InvalidUsage('No cid string found in parameters', 400)
+        raise InvalidUsage('No query string found in parameters', 500)
     if 'N' not in request.json:
         N = 5
     else:

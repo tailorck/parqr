@@ -10,14 +10,4 @@ body, and tags of a new post.
 
 To run the API, use the run script:
 
-    bash run.sh < -d | -p | -t >
-
-### Test
-
-To test the application, first set the `FLAKS_CONF` environment variable:
-
-    export FLASK_CONF="testing"
-    
-Then run pytest in the app directory:
-
-    pytest app/
+    sh run.sh < development | production >
