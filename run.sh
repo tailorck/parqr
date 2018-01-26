@@ -1,15 +1,31 @@
 #!/bin/bash
 
-usage="Usage: sh run.sh < development | production >"
+usage="Usage: sh run.sh < -d | -p | -t >"
 
-if [ $# -ne 1 ]; then
+while getopts ":dpt" opt; do
+    case $opt in
+        d)
+            OPTION="d"
+            export FLASK_CONF="development"
+            gunicorn app.api:app --reload --log-level DEBUG --timeout 300
+            ;;
+        p)
+            OPTION="p"
+            export FLASK_CONF="production"
+            gunicorn app.api:app
+            ;;
+        t)
+            OPTION="t"
+            export FLASK_CONF="testing"
+            gunicorn app.api:app --reload --log-level DEBUG --timeout 300
+            ;;
+        \?)
+            OPTION="?"
+            echo $usage
+            ;;
+    esac
+done
+
+if [ -z $OPTION ]; then
     echo $usage
-else
-    if [ $1 == "development" ]; then
-	export APP_SETTINGS="app.config.DevelopmentConfig"
-	gunicorn app.views:app --log-level DEBUG --timeout 300
-    elif [ $1 == "production" ]; then
-	export APP_SETTINGS="app.config.ProductionConfig"
-	gunicorn app.views:app
-    fi
 fi

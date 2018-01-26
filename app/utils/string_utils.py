@@ -1,6 +1,7 @@
-from Crypto.PublicKey import RSA
+import logging
 import re
-from os.path import dirname, abspath, join
+
+logger = logging.getLogger('app')
 
 
 def clean(string):
@@ -12,7 +13,7 @@ def clean(string):
     Parameters
     ----------
     string : str
-    	The input string that needs cleaning
+        The input string that needs cleaning
 
     Returns
     -------
@@ -30,7 +31,7 @@ def clean_and_split(string):
     Parameters
     ----------
     string : str
-    	The input string that needs cleaning
+        The input string that needs cleaning
 
     Returns
     -------
@@ -40,17 +41,10 @@ def clean_and_split(string):
     return clean(string).split()
 
 
-def read_credentials():
-    """Method to read encrypted .login file for Piazza username and password"""
-    curr_dir = dirname(abspath(__file__))
-    key_file = join(curr_dir, '..', '.key.pem')
-    login_file = join(curr_dir, '..', '.login')
+def stringify_followups(followup_list):
+    return_list = []
+    for followup in followup_list:
+        return_list.append(followup['text'])
+        return_list += followup['responses']
 
-    with open('.key.pem') as f:
-        key = RSA.importKey(f.read())
-
-    with open('.login') as f:
-        email_bytes = f.read(128)
-        password_bytes = f.read(128)
-
-    return key.decrypt(email_bytes), key.decrypt(password_bytes)
+    return ' '.join(return_list)
