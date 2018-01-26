@@ -1,12 +1,5 @@
-from app import app
-from flask_mongoengine import MongoEngine
-
-db = MongoEngine(app)
-
-
-class Followup(db.EmbeddedDocument):
-    text = db.StringField(required=True)
-    responses = db.ListField(db.StringField())
+from app import db
+import pdb
 
 
 class Post(db.Document):
@@ -17,24 +10,23 @@ class Post(db.Document):
     tags = db.ListField(db.StringField(), requred=True)
     s_answer = db.StringField()
     i_answer = db.StringField()
-    followups = db.ListField(db.EmbeddedDocumentField(Followup))
 
-    def pprint(self):
+    def __str__(self):
+        return '<{}: id={!r}>'.format(type(self).__name__, self.id)
+
+    def __repr__(self):
         def _format_long_string(string):
             string = string.encode('ascii', 'ignore')
             string = string.replace('\n', ' ')
             string = ' '.join(string.split(' ')[:6]) + '...'
-            return string
 
         attrs = []
-        print '<{}: id={!r}>'.format(type(self).__name__, self.id)
-        fields = ['cid', 'pid', 'subject', 'body', 'tags', 's_answer',
-                  'i_answer', 'followups']
-        for name in fields:
+        for name in self._fields.keys():
             value = getattr(self, name)
             if isinstance(value, unicode):
                 value = _format_long_string(value)
-            print '    {} = {}'.format(name, value)
+            attrs.append('\n    {} = {},'.format(name, value))
+        return '<{}: {}\n>'.format(type(self).__name__, ''.join(attrs))
 
 
 class Course(db.Document):

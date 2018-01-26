@@ -15,25 +15,8 @@ class Config(object):
 
 class ProductionConfig(Config):
     LOG_LEVEL = logging.INFO
-    DEBUG = False
-    TESTING = False
 
 
 class DevelopmentConfig(Config):
-    LOG_LEVEL = logging.DEBUG
     DEBUG = True
-    TESTING = False
-
-
-class TestingConfig(Config):
     LOG_LEVEL = logging.DEBUG
-    DEBUG = True
-    TESTING = True
-    MONGODB_DB = 'test_parqr'
-
-
-config_dict = {
-    'production': ProductionConfig,
-    'development': DevelopmentConfig,
-    'testing': TestingConfig
-}
