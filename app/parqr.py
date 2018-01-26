@@ -95,14 +95,14 @@ class Parqr(object):
             post = Post.objects.get(cid=cid, pid=pid)
             score = final_scores.loc[pid][0]
             subject = post.subject
-            stud_answer = True if post.s_answer != None else False
-            inst_answer = True if post.i_answer != None else False
+            s_answer = True if post.s_answer != None else False
+            i_answer = True if post.i_answer != None else False
 
             if score > SCORE_THRESHOLD:
                 top_posts[score] = {'pid': pid,
                                     'subject': subject,
-                                    's_answer': stud_answer,
-                                    'i_answer': inst_answer}
+                                    's_answer': s_answer,
+                                    'i_answer': i_answer}
 
         return top_posts
 
