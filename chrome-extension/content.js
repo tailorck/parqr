@@ -140,14 +140,13 @@ function getTags() {
 
 function getWords() {
 	var body = ""
-	if (!$('#rich_old_new_post_ifr')[0] === undefined) {
+	if (!($('#rich_old_new_post_ifr')[0] === undefined)) {
 		var body_iframe = $('#rich_old_new_post_ifr')[0].contentWindow;
 		body = body_iframe.document.getElementsByTagName('p')[0].innerText;
 	}
 	else {
 		body = $("#rich_old_new_post").val()
 	}
-	
 
 	var tag_texts = getTags();
 	var word_list = [];
