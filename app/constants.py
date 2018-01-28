@@ -1,8 +1,11 @@
-#!/usr/bin/env python
-# encoding: utf-8
+from enum import Enum
 
-"""
-Constants.py
-"""
 
-THRESHOLD_SCORE = 0.2
+SCORE_THRESHOLD = 0.1
+
+
+class TFIDF_MODELS(Enum):
+    POST = 0
+    I_ANSWER = 1
+    S_ANSWER = 2
+    FOLLOWUP = 3
