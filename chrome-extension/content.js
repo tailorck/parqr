@@ -1,56 +1,78 @@
 recommendations_html = `
-	<div id="recommendations">
-		<b>These posts may already have your answer:</b>
+	<div id="parqr-recommendations">
+		<span id="search-results-header"></span>
 		<ul id="rec_link_list">
 		</ul>
-	</div>
-	`;
+	</div>`
 
-
-SIGNIFICANT_DIFF = 5;
+searchResultsHeaderHtml = "<b>These posts may already have your answer:</b>"
 
 $(document).ready(function() {
 	$("#new_post_button").click(newButtonClick);
 });
 
-console.log('content script loaded')
+var DEBOUNCE_IN_MS = 300
 
 function newButtonClick(e) {
-	var curr_length = 0;
-	setInterval(function() {
-		curr_length = parsePiazzaText(curr_length);
-	}, 1000);
+	$("#post_summary").parent().append(recommendations_html)
+	$('#post_summary').keyup(debounce(DEBOUNCE_IN_MS, parsePiazzaText))
+
+	// Add listener to the rich text editor
+	// .contents().find("#tinymce") is necessary in order to find elements within the #rich_old_new_post_ifr
+	// iframe. They cannot be referenced directly
+	$("#rich_old_new_post_ifr").contents().find("#tinymce").keyup(debounce(DEBOUNCE_IN_MS, parsePiazzaText))
+
+	// Add listener to the plain text editor
+	$("#rich_old_new_post").keyup(debounce(DEBOUNCE_IN_MS, parsePiazzaText))
+
+	// Parse text when a tag is clicked
+	$(".tag").click(debounce(DEBOUNCE_IN_MS, parsePiazzaText))	
 }
 
-function parsePiazzaText(curr_length) {
+var request_counter = 0
+var latest_processed_req = -1
+
+function parsePiazzaText() {
 	var cid = getCourseId();
 	var words = getWords();
-	var new_length = words.length;
 
-	if(!words){
- 	    words = "Piazza Automated Related Question Recommender";
- 	    new_length = words.length;
- 	}
-
-	if (new_length > 0 && Math.abs(new_length - curr_length) > SIGNIFICANT_DIFF) {
-		console.log('Sending: ' + words);
+	// If works is empty, don't send anything back but clear the list
+	if (!words) {
+		removeSearchResultsHeader()
+		clearSuggestions();
+	}
+	else {
+		var req_id = request_counter
+		request_counter += 1
 		chrome.runtime.sendMessage({words: words, cid: cid}, function(response) {
+			if (req_id < latest_processed_req) {
+				return
+			} 
+
+			latest_processed_req = req_id
+
 			if (!response) {
-				return curr_length;
+				removeSearchResultsHeader()
+				return
 			}
+
 			response = JSON.parse(response);
-			
-			// Insert the recommendation template if it is not already there
-			if ($("#recommendations").length == 0) {
-				$(".right_section")[3].innerHTML += recommendations_html;
+			clearSuggestions()
+
+			// If there are no recomendations, return
+			if (Object.keys(response).length === 0){
+				removeSearchResultsHeader()
+				return
 			}
 
 			// Grab a handle to the links div and remove the previous links
-			var $rec_link_list = $("#rec_link_list") 
-			$rec_link_list[0].innerHTML = "";
+			var $rec_link_list = $("#rec_link_list")
 		
 			// Insert recommendations into template in order of best score
 			var sorted_scores = Object.keys(response).sort().reverse();
+
+			insertSearchResultsHeader()
+			// Add all of the scores to the recomendations lists
 			for (i = 0; i < sorted_scores.length; i++) {
 				// Extract pertinent information from response json
 				var score = sorted_scores[i];
@@ -79,9 +101,22 @@ function parsePiazzaText(curr_length) {
 				$rec_link_list.append($('<li>').html('{0}{1}'.format(pid_html, subject_html)));
 			}
 		});
-		return new_length;
 	}
-	return curr_length;	
+}
+
+function clearSuggestions() {
+	$("#rec_link_list").empty()
+}
+
+function removeSearchResultsHeader() {
+	$("#search-results-header").empty()
+}
+
+function insertSearchResultsHeader() {
+	if ($("#search-results-header")[0].innerHTML === "") {
+		$("#search-results-header")[0].innerHTML = searchResultsHeaderHtml
+	} 
+	
 }
 
 function getCourseId() {
@@ -104,13 +139,19 @@ function getTags() {
 }
 
 function getWords() {
-	var body_iframe = $('#rich_old_new_post_ifr')[0].contentWindow;
+	var body = ""
+	if (!($('#rich_old_new_post_ifr')[0] === undefined)) {
+		var body_iframe = $('#rich_old_new_post_ifr')[0].contentWindow;
+		body = body_iframe.document.getElementsByTagName('p')[0].innerText;
+	}
+	else {
+		body = $("#rich_old_new_post").val()
+	}
 
 	var tag_texts = getTags();
 	var word_list = [];
 
 	var summary = $('#post_summary').val();
-	var body = body_iframe.document.getElementsByTagName('p')[0].innerText;
 
 	if (summary.length > 0) {
 		word_list.push(summary);
@@ -139,4 +180,13 @@ if (!String.prototype.format) {
       ;
     });
   };
+}
+
+// Given a delay function and a callback, debounces a function for that amount of time.
+function debounce(delay, callback) {
+	var timeout;
+	return function() {
+		clearTimeout(timeout)
+		timeout = setTimeout(callback, delay)
+	}
 }
