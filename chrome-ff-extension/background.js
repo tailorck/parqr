@@ -1,6 +1,19 @@
-chrome.extension.onMessage.addListener(function(request, sender, sendResponse) {
-    console.log(request)
+var browser;
 
+try {
+    // For Chrome
+    browser = chrome
+} catch (error) {
+
+    try {
+        // For Firefox
+        browser = browser
+    } catch(error) {
+        
+    }
+}
+
+browser.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     var host = "http://ec2-54-227-24-100.compute-1.amazonaws.com/"
     request["type"] = "query";
 

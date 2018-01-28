@@ -1,3 +1,18 @@
+var browser;
+
+try {
+    // For Chrome
+    browser = chrome
+} catch (error) {
+
+    try {
+        // For Firefox
+        browser = browser
+    } catch(error) {
+        
+    }
+}
+
 recommendations_html = `
 	<div id="parqr-recommendations">
 		<span id="search-results-header"></span>
@@ -44,7 +59,7 @@ function parsePiazzaText() {
 	else {
 		var req_id = request_counter
 		request_counter += 1
-		chrome.runtime.sendMessage({words: words, cid: cid}, function(response) {
+		browser.runtime.sendMessage({words: words, cid: cid}, function(response) {
 			if (req_id < latest_processed_req) {
 				return
 			} 
