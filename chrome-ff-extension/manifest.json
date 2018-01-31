@@ -22,7 +22,7 @@
     "content_scripts": [
         {
             "matches": [
-                "*://*.piazza.com/class/*"
+                "*://*.piazza.com/*"
             ],
             "js": [
                 "js/jquery-3.2.0.min.js",
