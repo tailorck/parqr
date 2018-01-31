@@ -9,7 +9,7 @@ try {
         // For Firefox
         browser = browser
     } catch(error) {
-        
+
     }
 }
 
@@ -20,7 +20,7 @@ recommendations_html = `
 		</ul>
 	</div>`
 
-searchResultsHeaderHtml = "<b>These posts may already have your answer:</b>"
+searchResultsHeaderHtml = "<span><b>These posts may already have your answer:</b><span>"
 
 $(document).ready(function() {
 	$("#new_post_button").click(newButtonClick);
@@ -129,7 +129,7 @@ function removeSearchResultsHeader() {
 
 function insertSearchResultsHeader() {
 	if ($("#search-results-header")[0].innerHTML === "") {
-		$("#search-results-header")[0].innerHTML = searchResultsHeaderHtml
+		$("#search-results-header").append(searchResultsHeaderHtml)
 	} 
 	
 }
