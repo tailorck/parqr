@@ -15,52 +15,61 @@ try {
 
 browser.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     var host = "http://ec2-54-227-24-100.compute-1.amazonaws.com/"
-    request["type"] = "query";
 
     if (request["type"] == "query"){
         get_similar_posts(host, request, sender, sendResponse)
     } else if(request["type"] == "click"){
         get_click_rate(host, request, sender, sendResponse)
+    } else if (request["type"] == "event") {
+        post_event(host, request['eventType'], request['eventData'])
     }
-
     return true;
 });
 
-
-function get_similar_posts(host, request, sender, sendResponse) {
-
-    var endpoint = host + "api/similar_posts";
-    var requestJson = {};
-    requestJson['query'] = request['words'];
-    requestJson['cid'] = request['cid'];
-    requestJson['N'] = 5;
-
-    requestJson = add_cookie(requestJson);
-
-    var http = new XMLHttpRequest();
-    http.open("POST", endpoint, true);
-    http.setRequestHeader("Content-type", "application/json");
-
-    http.onreadystatechange = function() {
-        if(http.readyState == 4) {
-            if(http.status == 500) {
-                console.log(http.response);
-            } else {
-                console.log(http.response);
-                sendResponse(http.response);
-            }
-        }
+function post_event(host, eventName, eventData) {
+    var endpoint = host + "api/event"
+    var requestJson = {
+        type: "event",
+        eventName: eventName,
+        eventData: eventData,
+        time: new Date().valueOf()
     }
 
-    requestJson['time'] = new Date().valueOf();
-    console.log(requestJson)
-    http.send(JSON.stringify(requestJson))
-
-    console.log('Retrieving posts from API');
+    getCookie(function(cookie_val) {
+        requestJson['uid'] = cookie_val
+        var req = new XMLHttpRequest();
+        req.open("POST", endpoint, true)
+        req.send(JSON.stringify(requestJson))
+        console.log(JSON.stringify(requestJson))
+    })
 }
 
+function get_similar_posts(host, request, sender, sendResponse) {
+    var endpoint = host + "api/similar_posts";
+    var requestJson = {
+        query: request['words'],
+        cid: request['cid'],
+        N: 5,
+        time: new Date().valueOf()
+    };
 
-function add_cookie(requestJson) {
+    getCookie(function(cookie_val) {
+        requestJson['uid'] = cookie_val
+        var req = new XMLHttpRequest();
+        req.open("POST", endpoint, true)
+        req.setRequestHeader("Content-type", "application/json");
+
+        req.onreadystatechange = function() {
+            if(req.readyState === XMLHttpRequest.DONE && req.status === 200) {
+                sendResponse(JSON.parse(req.responseText))
+            }
+        }
+
+        req.send(JSON.stringify(requestJson))
+    })
+}
+
+function getCookie(callback) {
 
     chrome.cookies.get({
         url: 'http://piazza.com',
@@ -68,24 +77,18 @@ function add_cookie(requestJson) {
     },
     function (cookie) {
         if (cookie) {
-            console.log('Retrieving Cookie Value!');
-            console.log(cookie.value);
-            requestJson['uid'] = cookie.value
+            callback(cookie.value)
         }
         else {
-            console.log('Setting new Cookie Value!');
             chrome.cookies.set({
                 "name": "uid",
                 "url": "http://piazza.com",
                 "value": gen_hash(),
             }, function (cookie) {
-                console.log(JSON.stringify(cookie));
-                requestJson['uid'] = cookie.value
+                callback(cookie.value)
             });
         }
     });
-
-    return requestJson;
 }
 
 function gen_hash() {
@@ -98,34 +101,4 @@ function gen_hash() {
     var prod = rand * time_ms;
     prod = prod.toString().replace('.','');
     return prod;
-}
-
-function get_click_rate(host, request, sender, sendResponse) {
-
-    var endpoint = host + "api/click";
-    var requestJson = {};
-    requestJson['time'] = new Date().valueOf();
-    requestJson['pid'] = request['pid'];
-    requestJson['uid'] = request['uid'];
-    requestJson['cid'] = request['cid'];
-
-    var http = new XMLHttpRequest();
-    http.open("POST", endpoint, true);
-    http.setRequestHeader("Content-type", "application/json");
-
-    http.onreadystatechange = function() {
-        if(http.readyState == 4) {
-            if(http.status == 500) {
-                console.log(http.response);
-            } else {
-                console.log(http.response);
-                sendResponse(http.response);
-            }
-        }
-    }
-
-    console.log(requestJson)
-    http.send(JSON.stringify(requestJson))
-
-    console.log('Retrieving posts from API');
 }
