@@ -4,7 +4,6 @@ import os
 
 import pytest
 
-print 'in test_api.py'
 
 @pytest.fixture
 def client():
@@ -100,4 +99,10 @@ def test_similar_posts(client, Post, Course, dummy_db):
     payload = dict(N=3, cid='j8rf9vx65vl23t', query='minimax')
     resp = client.post(endpoint, data=json.dumps(payload),
                        content_type='application/json')
-    json_resp = json.loads(resp.data)
+    assert resp.status_code == 200
+
+    # test valid N, invalid cid, valid query
+    payload = dict(N=3, cid='abc123', query='minimax')
+    resp = client.post(endpoint, data=json.dumps(payload),
+                       content_type='application/json')
+    assert resp.status_code == 400

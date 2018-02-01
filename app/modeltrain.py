@@ -2,6 +2,8 @@ from multiprocessing.dummy import Pool
 from functools import partial
 from threading import Thread
 import logging
+import warnings
+warnings.filterwarnings("ignore")
 
 import numpy as np
 from sklearn.feature_extraction import text

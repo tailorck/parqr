@@ -5,7 +5,6 @@ import numpy as np
 from scipy.sparse import save_npz, load_npz
 from sklearn.externals import joblib
 
-from app.exception import InvalidUsage
 
 logger = logging.getLogger('app')
 
@@ -24,13 +23,6 @@ class ModelCache(object):
             os.mkdir(cache_path)
 
     def _get_cid_dir(self, cid):
-        cid_dir = os.path.join(self.cache_path, cid)
-
-        if not os.path.isdir(cid_dir):
-            error_msg = "No models found for course with cid: {}".format(cid)
-            logger.error(error_msg)
-            raise InvalidUsage(error_msg)
-
         return os.path.join(self.cache_path, cid)
 
     def _ensure_dir(self, cid):

@@ -1,7 +1,11 @@
+import logging
+
+from flask import jsonify, make_response, request
+
 from app import app
 from app.modeltrain import ModelTrain
+from app.models import Course
 from exception import InvalidUsage
-from flask import jsonify, make_response, request
 from parqr import Parqr
 from scraper import Scraper
 
@@ -10,6 +14,8 @@ api_endpoint = '/api/'
 parqr = Parqr()
 scraper = Scraper()
 model_train = ModelTrain()
+
+logger = logging.getLogger('app')
 
 
 @app.errorhandler(404)
@@ -30,7 +36,6 @@ def index():
 @app.route(api_endpoint + 'train_all_models', methods=['POST'])
 def train_all_models():
     model_train.persist_all_models()
-
     return jsonify({'msg': 'training all models'}), 202
 
 
@@ -78,7 +83,12 @@ def similar_posts():
     else:
         N = int(request.json['N'])
 
+    course_id = request.json['cid']
+    if not Course.objects(cid=course_id):
+        logger.error('New un-registered course found: {}'.format(course_id))
+        raise InvalidUsage("Course with cid {} not supported at this "
+                           "time.".format(course_id), 400)
+
     query = request.json['query']
-    cid = request.json['cid']
-    similar_posts = parqr.get_recommendations(cid, query, N)
+    similar_posts = parqr.get_recommendations(course_id, query, N)
     return jsonify(similar_posts)
