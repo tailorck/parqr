@@ -18,8 +18,8 @@ class ModelCache(object):
         self.cache_path = cache_path
 
         if not os.path.isdir(cache_path):
-            logger.warn('Resource path does not exist. Creating {}'
-                        .format(cache_path))
+            logger.warning('Resource path does not exist. Creating {}'
+                           .format(cache_path))
             os.mkdir(cache_path)
 
     def _get_cid_dir(self, cid):
@@ -64,8 +64,8 @@ class ModelCache(object):
         if os.path.isfile(model_file):
             model = joblib.load(model_file, 'r')
         else:
-            logger.warning("Could not find MODEL for cid '{}' with name '{}'"
-                           .format(cid, name))
+            logger.debug("Could not find MODEL for cid '{}' with name '{}'"
+                         .format(cid, name))
             model = None
 
         return model
@@ -79,8 +79,8 @@ class ModelCache(object):
         if os.path.isfile(matrix_file):
             matrix = load_npz(matrix_file)
         else:
-            logger.warning("Could not find MATRIX for cid '{}' with name '{}'"
-                           .format(cid, name))
+            logger.debug("Could not find MATRIX for cid '{}' with name '{}'"
+                         .format(cid, name))
             matrix = None
 
         return matrix
@@ -94,8 +94,8 @@ class ModelCache(object):
         if os.path.isfile(pid_list_file):
             pid_list = np.loadtxt(pid_list_file)
         else:
-            logger.warning("Could not find PID_LIST for cid '{}' with "
-                           "name '{}'".format(cid, name))
+            logger.debug("Could not find PID_LIST for cid '{}' with "
+                         "name '{}'".format(cid, name))
             pid_list = None
 
         return pid_list

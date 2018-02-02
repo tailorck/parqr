@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 import logging
-import pdb
 
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
