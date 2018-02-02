@@ -1,3 +1,18 @@
+var browser;
+
+try {
+    // For Chrome
+    browser = chrome
+} catch (error) {
+
+    try {
+        // For Firefox
+        browser = browser
+    } catch(error) {
+
+    }
+}
+
 recommendations_html = `
 	<div id="parqr-recommendations">
 		<span id="search-results-header"></span>
@@ -5,7 +20,7 @@ recommendations_html = `
 		</ul>
 	</div>`
 
-searchResultsHeaderHtml = "<b>These posts may already have your answer:</b>"
+searchResultsHeaderHtml = "<span><b>These posts may already have your answer:</b><span>"
 
 $(document).ready(function() {
 	$("#new_post_button").click(newButtonClick);
@@ -14,6 +29,7 @@ $(document).ready(function() {
 var DEBOUNCE_IN_MS = 300
 
 function newButtonClick(e) {
+	sendEvent('newPost', {cid: getCourseId()})
 	$("#post_summary").parent().append(recommendations_html)
 	$('#post_summary').keyup(debounce(DEBOUNCE_IN_MS, parsePiazzaText))
 
@@ -26,11 +42,20 @@ function newButtonClick(e) {
 	$("#rich_old_new_post").keyup(debounce(DEBOUNCE_IN_MS, parsePiazzaText))
 
 	// Parse text when a tag is clicked
-	$(".tag").click(debounce(DEBOUNCE_IN_MS, parsePiazzaText))	
+	$(".tag").click(debounce(DEBOUNCE_IN_MS, parsePiazzaText))
+
+	// Send an event when the "submit post" button is clicked
+	$("#post_button").click(function() {
+		var eventData = getWords()
+		eventData.cid = getCourseId() 
+		sendEvent('postSubmitted', eventData)
+	})
 }
 
 var request_counter = 0
 var latest_processed_req = -1
+
+var suggestions = []
 
 function parsePiazzaText() {
 	var cid = getCourseId();
@@ -44,10 +69,11 @@ function parsePiazzaText() {
 	else {
 		var req_id = request_counter
 		request_counter += 1
-		chrome.runtime.sendMessage({words: words, cid: cid}, function(response) {
+		browser.runtime.sendMessage({words: words, cid: cid, type: 'query'}, function(response) {
 			if (req_id < latest_processed_req) {
 				return
 			} 
+			suggestions = []
 
 			latest_processed_req = req_id
 
@@ -56,7 +82,6 @@ function parsePiazzaText() {
 				return
 			}
 
-			response = JSON.parse(response);
 			clearSuggestions()
 
 			// If there are no recomendations, return
@@ -82,6 +107,14 @@ function parsePiazzaText() {
 				var s_answer_exists = response[score]["s_answer"];
 				var i_answer_exists = response[score]["i_answer"];
 
+				suggestions.push({
+					pid: pid,
+					has_s_answer: s_answer_exists,
+					has_i_answer: i_answer_exists,
+					subject: subject,
+					score: score,
+				})
+
 				// Create a rounded box with the pid of the suggestion
 				var $pid_link = $('<button>').text('@' + pid).addClass("box");
 				if (i_answer_exists) {
@@ -96,10 +129,24 @@ function parsePiazzaText() {
 				var link_string = '<a href="{0}" target="_blank" class="rec_link"></a>'.format(dest);
 				var $subject_link = $(link_string).html(subject);
 
+				$subject_link.click(function() {
+					console.log("CLICKED IT")
+				})
+
 				var pid_html = $pid_link[0].outerHTML;
 				var subject_html = $subject_link[0].outerHTML;
-				$rec_link_list.append($('<li>').html('{0}{1}'.format(pid_html, subject_html)));
+
+				$rec_link_list.append($('<li class="parqr-suggestion">').html('{0}{1}'.format(pid_html, subject_html)));
 			}
+
+			$rec_link_list.on('click', '.rec_link', function(ev) {
+				var target = ev.target
+				var li = $(target).parent()[0]
+				link_index = $('.parqr-suggestion').index(li)
+				eventData = JSON.parse(JSON.stringify(suggestions[link_index]))
+				eventData.cid = getCourseId()
+				sendEvent('clickedSuggestion', eventData)
+			})
 		});
 	}
 }
@@ -114,9 +161,17 @@ function removeSearchResultsHeader() {
 
 function insertSearchResultsHeader() {
 	if ($("#search-results-header")[0].innerHTML === "") {
-		$("#search-results-header")[0].innerHTML = searchResultsHeaderHtml
+		$("#search-results-header").append(searchResultsHeaderHtml)
 	} 
 	
+}
+
+function sendEvent(eventType, eventData) {
+	browser.runtime.sendMessage({
+		type: 'event', 
+		eventType: eventType, 
+		eventData: eventData
+	})
 }
 
 function getCourseId() {
