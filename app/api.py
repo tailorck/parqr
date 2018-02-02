@@ -1,4 +1,5 @@
 import logging
+import json
 
 from flask import jsonify, make_response, request
 
@@ -31,6 +32,24 @@ def handle_invalid_usage(error):
 @app.route('/')
 def index():
     return "Hello, World!"
+
+
+@app.route(api_endpoint + 'event', methods=['POST'])
+def register_event():
+    if request.get_data() == '':
+        raise InvalidUsage('No request body provided', 400)
+    if not request.json:
+        raise InvalidUsage('Request body must be in JSON format', 400)
+    if 'eventName' not in request.json:
+        pass
+    if 'time' not in request.json:
+        pass
+
+    with open('events.json', 'a') as outfile:
+        json.dump(request.json, outfile)
+        outfile.write('\n')
+
+    return jsonify({'msg': 'success'}), 200
 
 
 @app.route(api_endpoint + 'train_all_models', methods=['POST'])
