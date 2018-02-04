@@ -9,6 +9,8 @@ from models import Post
 from utils import clean, ModelCache
 from constants import TFIDF_MODELS, SCORE_THRESHOLD
 
+logger = logging.getLogger('app')
+
 
 class ModelInfo(object):
 
@@ -52,7 +54,6 @@ class Parqr(object):
 
     def __init__(self):
         """Initializes private caching dictionaries."""
-        self._logger = logging.getLogger('app')
         self._course_dict = {}
         self._model_cache = ModelCache('app/resources')
 
@@ -74,7 +75,7 @@ class Parqr(object):
             A sorted dict of the top N most similar posts with their similarity
             scores as the keys
         """
-        self._logger.info('Retrieving similar posts for query.')
+        logger.info('Retrieving similar posts for query.')
 
         # clean query vector
         clean_query = clean(query)
@@ -136,6 +137,7 @@ class Parqr(object):
         if cid not in self._course_dict:
             self._load_all_models(cid)
         elif now - self._course_dict[cid].last_load > delay:
+            logger.info('Reloading models for cid: {}'.format(cid))
             self._load_all_models(cid)
 
         course_info = self._course_dict[cid]
@@ -183,7 +185,7 @@ class Parqr(object):
         Args:
             cid (str): The course id of interest
         """
-        self._logger.info("Loading all models for cid: {}".format(cid))
+        logger.info("Loading all models for cid: {}".format(cid))
 
         if cid not in self._course_dict:
             self._course_dict[cid] = CourseInfo(cid)
