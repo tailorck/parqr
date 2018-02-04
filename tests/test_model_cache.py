@@ -6,7 +6,6 @@ import pytest
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-print 'in test_model_cache.py'
 
 @pytest.fixture(scope='function')
 def model_cache(tmpdir):
@@ -30,7 +29,7 @@ def dummy_models():
     dummy_vectorizer = TfidfVectorizer(analyzer='word')
     dummy_matrix = dummy_vectorizer.fit_transform(['this is a test word set',
                                                    'just some random words'])
-    dummy_pid_list = np.array([1,2,3,4,5])
+    dummy_pid_list = np.array([1, 2, 3, 4, 5])
 
     return dummy_vectorizer, dummy_matrix, dummy_pid_list
 
@@ -49,6 +48,7 @@ def test_store_models_happy_case(model_cache, dummy_cid, dummy_models):
                                        'dummy_model_matrix.npz'))
     assert os.path.isfile(os.path.join(model_cache.cache_path, dummy_cid,
                                        'dummy_model_pid_list.csv'))
+
 
 def test_get_models_happy_case(model_cache, dummy_cid, dummy_models):
     vectorizer, matrix, pid_list = dummy_models

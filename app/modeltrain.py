@@ -3,7 +3,6 @@ from functools import partial
 from threading import Thread
 import logging
 import warnings
-warnings.filterwarnings("ignore")
 
 import numpy as np
 from sklearn.feature_extraction import text
@@ -12,6 +11,8 @@ from app.exception import InvalidUsage
 from constants import TFIDF_MODELS
 from models import Post, Course
 from utils import clean_and_split, stringify_followups, ModelCache
+
+warnings.filterwarnings("ignore")
 
 
 class ModelTrain(object):
