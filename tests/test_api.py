@@ -6,31 +6,28 @@ import pytest
 
 
 @pytest.fixture
-def testing_env():
-    assert os.environ['FLASK_CONF'] == 'testing'
-
-
-@pytest.fixture
-def client(testing_env):
+def client():
     from app import api
     client = api.app.test_client()
     return client
 
 
 @pytest.fixture
-def Post(testing_env):
+def Post():
     from app.models import Post
+    Post.drop_collection()
     return Post
 
 
 @pytest.fixture
-def Course(testing_env):
+def Course():
     from app.models import Course
+    Course.drop_collection()
     return Course
 
 
 @pytest.fixture
-def dummy_db(client, testing_env):
+def dummy_db(client):
     payload = dict(course_id='j8rf9vx65vl23t')
     client.post('/api/course', data=json.dumps(payload),
                 content_type='application/json')
@@ -102,4 +99,10 @@ def test_similar_posts(client, Post, Course, dummy_db):
     payload = dict(N=3, cid='j8rf9vx65vl23t', query='minimax')
     resp = client.post(endpoint, data=json.dumps(payload),
                        content_type='application/json')
-    json_resp = json.loads(resp.data)
+    assert resp.status_code == 200
+
+    # test valid N, invalid cid, valid query
+    payload = dict(N=3, cid='abc123', query='minimax')
+    resp = client.post(endpoint, data=json.dumps(payload),
+                       content_type='application/json')
+    assert resp.status_code == 400

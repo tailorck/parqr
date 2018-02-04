@@ -1,4 +1,7 @@
-from app import db
+from app import app
+from flask_mongoengine import MongoEngine
+
+db = MongoEngine(app)
 
 
 class Followup(db.EmbeddedDocument):

@@ -1,5 +1,3 @@
-import re
-
 from threading import Thread
 import time
 import logging
@@ -9,27 +7,20 @@ from piazza_api import Piazza
 from piazza_api.exceptions import AuthenticationError, RequestError
 from progressbar import ProgressBar
 
-from .exception import InvalidUsage
-from .models import Course, Post
-from .utils import read_credentials, stringify_followups
+from exception import InvalidUsage
+from models import Course, Post
+from utils import read_credentials, stringify_followups
 
 
 class Scraper():
 
-    def __init__(self, verbose=False):
+    def __init__(self):
         """Initialize the Piazza object and login with the encrypted username
         and password
-
-        Parameters
-        ----------
-        verbose : boolean
-            A boolean to instruct module to output informative log statements
         """
         self._piazza = Piazza()
         self._threads = {}
-        self.verbose = verbose
-        if self.verbose == True:
-            self._logger = logging.getLogger('app')
+        self._logger = logging.getLogger('app')
 
         self._login()
 
@@ -44,7 +35,6 @@ class Scraper():
         if course_id in self._threads and self._threads[course_id].is_alive():
             raise InvalidUsage('Background thread is running', 500)
 
-        # TODO: Catch invalid course_id exception
         network = self._piazza.network(course_id)
         self._threads[course_id] = Thread(target=self._update_posts,
                                           args=(course_id, network,))
@@ -62,8 +52,7 @@ class Scraper():
         network : piazza_api.network
             A handle to the network object for the course
         """
-        if self.verbose:
-            self._logger.info('Retrieving posts for: {}'.format(course_id))
+        self._logger.info('Retrieving posts for: {}'.format(course_id))
         stats = network.get_statistics()
         total_questions = stats['total']['questions']
         pbar = ProgressBar(maxval=total_questions)
@@ -74,7 +63,7 @@ class Scraper():
             course = Course(course_id).save()
 
         start_time = time.time()
-        for pid in pbar(xrange(1, total_questions+1)):
+        for pid in pbar(xrange(1, total_questions + 1)):
             # Get the post if available
             try:
                 post = network.get_post(pid)
@@ -114,7 +103,8 @@ class Scraper():
 
         end_time = time.time()
         time_elapsed = end_time - start_time
-        self._logger.info('Course updated in: {:.2f}s'.format(time_elapsed))
+        self._logger.info('Course updated. {} posts scraped in: '
+                          '{:.2f}s'.format(total_questions, time_elapsed))
         self._threads.pop(course_id)
 
     def _check_for_updates(self, curr_post, new_fields):
@@ -243,18 +233,15 @@ class Scraper():
             email, password = read_credentials()
             self._piazza.user_login(email, password)
         except IOError:
-            if self.verbose:
-                self._logger.error("File not found. Use encrypt_login.py to "
-                                   "create encrypted password store")
+            self._logger.error("File not found. Use encrypt_login.py to "
+                               "create encrypted password store")
             self._login_with_input()
         except UnicodeDecodeError, AuthenticationError:
-            if self.verbose:
-                self._logger.error("Incorrect Email/Password found in "
-                                   "encryptedfile store")
+            self._logger.error("Incorrect Email/Password found in "
+                               "encrypted file store")
             self._login_with_input()
 
-        if self.verbose:
-            self._logger.info('Ready to serve requests')
+        self._logger.info('Ready to serve requests')
 
     def _login_with_input(self):
         """Prompt the user to input username and password to login to Piazza"""
@@ -263,6 +250,5 @@ class Scraper():
                 self._piazza.user_login()
                 break
             except AuthenticationError:
-                if self.verbose:
-                    self._logger.error('Invalid Username/Password')
+                self._logger.error('Invalid Username/Password')
                 continue
