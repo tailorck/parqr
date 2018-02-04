@@ -35,7 +35,6 @@ class Scraper():
         if course_id in self._threads and self._threads[course_id].is_alive():
             raise InvalidUsage('Background thread is running', 500)
 
-        # TODO: Catch invalid course_id exception
         network = self._piazza.network(course_id)
         self._threads[course_id] = Thread(target=self._update_posts,
                                           args=(course_id, network,))
@@ -43,15 +42,6 @@ class Scraper():
         self._threads[course_id].start()
 
     def _update_posts(self, course_id, network):
-        """
-
-        Args:
-            course_id:
-            network:
-
-        Returns:
-
-        """
         """Retrieves all new posts in course that are not already in database
         and updates old posts that have been modified
 
@@ -73,7 +63,7 @@ class Scraper():
             course = Course(course_id).save()
 
         start_time = time.time()
-        for pid in pbar(xrange(1, total_questions+1)):
+        for pid in pbar(xrange(1, total_questions + 1)):
             # Get the post if available
             try:
                 post = network.get_post(pid)
@@ -244,11 +234,11 @@ class Scraper():
             self._piazza.user_login(email, password)
         except IOError:
             self._logger.error("File not found. Use encrypt_login.py to "
-                                   "create encrypted password store")
+                               "create encrypted password store")
             self._login_with_input()
         except UnicodeDecodeError, AuthenticationError:
             self._logger.error("Incorrect Email/Password found in "
-                                   "encrypted file store")
+                               "encrypted file store")
             self._login_with_input()
 
         self._logger.info('Ready to serve requests')

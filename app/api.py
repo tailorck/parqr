@@ -1,7 +1,9 @@
 import logging
 import json
+import pdb
 
 from flask import jsonify, make_response, request
+import pandas as pd
 
 from app import app
 from app.modeltrain import ModelTrain
@@ -45,9 +47,16 @@ def register_event():
     if 'time' not in request.json:
         pass
 
-    with open('events.json', 'a') as outfile:
-        json.dump(request.json, outfile)
-        outfile.write('\n')
+    data = {}
+    data['cid'] = request.json['eventData']['cid']
+    data['type'] = request.json['eventName']
+    data['uid'] = request.json['uid']
+    data['time'] = request.json['time']
+
+    df = pd.DataFrame(data, index=[0])
+
+    with open('events.csv', 'a') as outfile:
+        df.to_csv(outfile, header=False, index=False)
 
     return jsonify({'msg': 'success'}), 200
 
