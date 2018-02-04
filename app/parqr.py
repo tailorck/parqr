@@ -130,7 +130,7 @@ class Parqr(object):
         all_pids = self._get_all_pids(cid)
         tfidf_scores = pd.DataFrame(index=all_pids)
         now = datetime.now()
-        delay = timedelta(minutes=15)
+        delay = timedelta(minutes=30)
 
         # If the models for a course are not loaded into memory or it has been
         # some time since they were loaded last, reload them.
