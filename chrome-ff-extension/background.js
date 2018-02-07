@@ -9,12 +9,12 @@ try {
         // For Firefox
         browser = browser
     } catch(error) {
-        
+
     }
 }
 
 browser.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-    var host = "http://ec2-54-227-24-100.compute-1.amazonaws.com/"
+    var host = "http://ec2-54-198-200-115.compute-1.amazonaws.com/"
 
     if (request["type"] == "query"){
         get_similar_posts(host, request, sender, sendResponse)
