@@ -28,7 +28,7 @@ def create_app(config_name):
 
     log_file = os.path.join(app.config['LOG_FOLDER'], 'app.log')
     log_level = app.config['LOG_LEVEL']
-    fh = RotatingFileHandler(log_file, maxBytes=100000, backupCount=5)
+    fh = RotatingFileHandler(log_file, maxBytes=100*1024*1024, backupCount=5)
 
     formatter = logging.Formatter('[%(asctime)s] %(levelname)-8s '
                                   '%(module)-10s: %(message)s')
