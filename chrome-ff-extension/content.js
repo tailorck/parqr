@@ -46,9 +46,14 @@ function newButtonClick(e) {
 
 	// Send an event when the "submit post" button is clicked
 	$("#post_button").click(function() {
-		var eventData = getWords()
-		eventData.cid = getCourseId() 
-		sendEvent('postSubmitted', eventData)
+		sendEvent('postSubmitted', {
+			cid: getCourseId(),
+			words: getWords(),
+			tags: getTags()
+		})
+		// var eventData = getWords()
+		// eventData.cid = getCourseId() 
+		// sendEvent('postSubmitted', eventData)
 	})
 }
 

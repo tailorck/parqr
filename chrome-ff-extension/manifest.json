@@ -2,7 +2,7 @@
     "manifest_version": 2,
     "name": "PARQR",
     "description": "Piazza Automated Related Question Recommender. PARQR recommends similar posts on Piazza to save you time!",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "browser_action": {
         "default_icon": "parqr.png",
         "default_popup": "parqr.html"
