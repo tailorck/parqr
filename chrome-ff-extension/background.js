@@ -39,6 +39,7 @@ function post_event(host, eventName, eventData) {
         requestJson['uid'] = cookie_val
         var req = new XMLHttpRequest();
         req.open("POST", endpoint, true)
+        req.setRequestHeader("Content-type", "application/json");
         req.send(JSON.stringify(requestJson))
         console.log(JSON.stringify(requestJson))
     })
