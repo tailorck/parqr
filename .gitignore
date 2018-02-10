@@ -117,3 +117,5 @@ venv.bak/
 *.iml
 .idea/
 .github/
+*.pem
+*.login

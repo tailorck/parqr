@@ -21,6 +21,7 @@ model_train = ModelTrain()
 logger = logging.getLogger('app')
 
 
+
 @app.errorhandler(404)
 def not_found(error):
     return make_response(jsonify({'error': 'error not found'}), 400)

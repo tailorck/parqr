@@ -1,0 +1,23 @@
+version: '2'
+services:
+    rabbit:
+        image: rabbitmq:latest
+        environment:
+            - RABBITMQ_DEFAULT_USER=admin
+            - RABBITMQ_DEFAULT_PASS=mypass
+        ports:
+            - "5672:5672"
+
+    app:
+        command: gunicorn --bind=0.0.0.0 app.api:app --reload --log-level DEBUG --timeout 300
+        environment:
+            - FLASK_CONF=production
+        build:
+            context: .
+            dockerfile: Dockerfile
+        volumes:
+            - .:/app
+        depends_on:
+            - rabbit
+        ports:
+            - "8000:8000"
