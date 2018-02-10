@@ -1,12 +1,21 @@
 version: '2'
 services:
-    rabbit:
+    queue:
         image: rabbitmq:latest
         environment:
             - RABBITMQ_DEFAULT_USER=admin
             - RABBITMQ_DEFAULT_PASS=mypass
         ports:
             - "5672:5672"
+
+    db:
+        image: mongo:latest
+        environment:
+            - MONGO_PORT_27017_TCP_ADDR=0.0.0.0
+        depends_on:
+            - queue
+        ports:
+            - '27019:27017'
 
     app:
         command: gunicorn --bind=0.0.0.0 app.api:app --reload --log-level DEBUG --timeout 300
@@ -15,9 +24,12 @@ services:
         build:
             context: .
             dockerfile: Dockerfile
+        links:
+          - queue:rabbitmq
+          - db:mongo
         volumes:
             - .:/app
         depends_on:
-            - rabbit
+            - db
         ports:
             - "8000:8000"
