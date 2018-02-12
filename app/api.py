@@ -105,8 +105,10 @@ def similar_posts():
 @app.route(api_endpoint + 'class/<cid>', methods=['POST'])
 def register_class(cid):
     if not redis.exists(cid):
+
+        # TODO: Schedule train_model function and the update_post function
         job = scheduler.schedule(scheduled_time=datetime.now(), func=test_me, kwargs={"course_id": cid},
-                                 interval=10)
+                                 interval=65)
         redis.set(cid, str(job.id))
         return jsonify({'course_id': cid}), 202
     else:
