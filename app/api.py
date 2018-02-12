@@ -2,6 +2,7 @@ import logging
 import json
 import pdb
 
+from datetime import datetime
 from flask import jsonify, make_response, request
 import pandas as pd
 
@@ -12,6 +13,13 @@ from exception import InvalidUsage
 from parqr import Parqr
 from scraper import Scraper
 
+from redis import Redis
+from rq import Queue
+from rq_scheduler import Scheduler
+import rq_dashboard
+
+from tasksrq import test_me
+
 api_endpoint = '/api/'
 
 parqr = Parqr()
@@ -19,6 +27,13 @@ scraper = Scraper()
 model_train = ModelTrain()
 
 logger = logging.getLogger('app')
+
+app.config.from_object(rq_dashboard.default_settings)
+app.register_blueprint(rq_dashboard.blueprint, url_prefix="/rq")
+
+redis = Redis(host="redishost", port="6379", db=0)
+queue = Queue(connection=redis)
+scheduler = Scheduler(connection=redis)
 
 
 @app.errorhandler(404)
@@ -82,20 +97,6 @@ def train_model():
     return jsonify({'course_id': cid}), 202
 
 
-@app.route(api_endpoint + 'course', methods=['POST'])
-def update_course():
-    if request.get_data() == '':
-        raise InvalidUsage('No request body provided', 400)
-    if not request.json:
-        raise InvalidUsage('Request body must be in JSON format', 400)
-    if 'course_id' not in request.json:
-        raise InvalidUsage('Course ID not found in JSON', 400)
-
-    course_id = request.json['course_id']
-    scraper.update_posts(course_id)
-    return jsonify({'course_id': course_id}), 202
-
-
 @app.route(api_endpoint + 'similar_posts', methods=['POST'])
 def similar_posts():
     if request.get_data() == '':
@@ -120,3 +121,27 @@ def similar_posts():
     query = request.json['query']
     similar_posts = parqr.get_recommendations(course_id, query, N)
     return jsonify(similar_posts)
+
+
+@app.route(api_endpoint + 'class/<cid>', methods=['POST'])
+def register_class(cid):
+    if not redis.exists(cid):
+        job = scheduler.schedule(scheduled_time=datetime.now(), func=test_me, kwargs={"course_id": cid},
+                                 interval=10)
+        redis.set(cid, str(job.id))
+        return jsonify({'course_id': cid}), 202
+    else:
+        raise InvalidUsage('Course ID already exists', 500)
+
+
+@app.route(api_endpoint + 'class/<cid>', methods=['DELETE'])
+def deregister_class(cid):
+    if redis.exists(cid):
+        job_id = redis.get(cid)
+        redis.delete(cid)
+        jobs = filter(lambda job: str(job.id) == job_id, [j for j in scheduler.get_jobs()])
+        for job in jobs:
+            scheduler.cancel(job)
+        return jsonify({'course_id': cid}), 202
+    else:
+        raise InvalidUsage('Course ID does not exists', 500)
