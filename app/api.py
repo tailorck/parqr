@@ -76,27 +76,6 @@ def register_event():
     return jsonify({'msg': 'success'}), 200
 
 
-@app.route(api_endpoint + 'train_all_models', methods=['POST'])
-def train_all_models():
-    model_train.persist_all_models()
-    return jsonify({'msg': 'training all models'}), 202
-
-
-@app.route(api_endpoint + 'train_model', methods=['POST'])
-def train_model():
-    if request.get_data() == '':
-        raise InvalidUsage('No request body provided', 400)
-    if not request.json:
-        raise InvalidUsage('Request body must be in JSON format', 400)
-    if 'course_id' not in request.json:
-        raise InvalidUsage('Course ID not found in JSON', 400)
-
-    cid = request.json['course_id']
-    model_train.persist_model(cid)
-
-    return jsonify({'course_id': cid}), 202
-
-
 @app.route(api_endpoint + 'similar_posts', methods=['POST'])
 def similar_posts():
     if request.get_data() == '':
