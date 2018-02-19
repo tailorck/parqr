@@ -9,7 +9,7 @@ class Config(object):
     TESTING = False
     MONGODB_DB = 'parqr'
     MONGODB_HOST = 'db'
-    MONGODB_PORT = 27019
+    MONGODB_PORT = 27017
     LOG_FOLDER = join(file_dir, '..', 'logs')
 
 

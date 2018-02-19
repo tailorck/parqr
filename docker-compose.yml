@@ -13,7 +13,7 @@ services:
         depends_on:
             - queue
         ports:
-            - '27019:27019'
+            - '27017:27017'
 
     app:
         command: gunicorn --bind=0.0.0.0 app.api:app --reload --log-level DEBUG --timeout 300

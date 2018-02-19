@@ -1,6 +1,7 @@
 import logging
 import json
 import pdb
+import pickle
 
 from datetime import datetime
 from flask import jsonify, make_response, request
@@ -18,7 +19,7 @@ from rq import Queue
 from rq_scheduler import Scheduler
 import rq_dashboard
 
-from tasksrq import test_me
+from tasksrq import update_post, train_model
 
 api_endpoint = '/api/'
 
@@ -31,7 +32,7 @@ logger = logging.getLogger('app')
 app.config.from_object(rq_dashboard.default_settings)
 app.register_blueprint(rq_dashboard.blueprint, url_prefix="/rq")
 
-redis = Redis(host="redishost", port="6379", db=0)
+redis = Redis(host="localhost", port="6379", db=0)
 queue = Queue(connection=redis)
 scheduler = Scheduler(connection=redis)
 
@@ -101,13 +102,17 @@ def similar_posts():
     similar_posts = parqr.get_recommendations(course_id, query, N)
     return jsonify(similar_posts)
 
-
+#TODO: Add additional attributes (i.e. professor, classes etc.)
 @app.route(api_endpoint + 'class/<cid>', methods=['POST'])
 def register_class(cid):
     if not redis.exists(cid):
-        job = scheduler.schedule(scheduled_time=datetime.now(), func=test_me, kwargs={"course_id": cid},
-                                 interval=10)
-        redis.set(cid, str(job.id))
+        job_update = scheduler.schedule(scheduled_time=datetime.now(), func=update_post,
+                                        kwargs={"course_id": cid}, interval=60)
+        job_train = scheduler.schedule(scheduled_time=datetime.now(), func=train_model,
+                                       kwargs={"course_id": cid}, interval=60)
+
+        serial_ids = pickle.dumps([str(job_update.id), str(job_train.id)])
+        redis.set(cid, serial_ids)
         return jsonify({'course_id': cid}), 202
     else:
         raise InvalidUsage('Course ID already exists', 500)
