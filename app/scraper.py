@@ -11,8 +11,6 @@ from exception import InvalidUsage
 from models import Course, Post
 from utils import read_credentials, stringify_followups
 
-from rq.job import Job
-
 
 class Scraper(object):
 
