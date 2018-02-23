@@ -9,6 +9,13 @@ def test_correct_env():
     assert os.environ['FLASK_CONF'] == 'testing'
 
 
+@pytest.fixture(scope='session')
+def client():
+    from app import api
+    client = api.app.test_client()
+    return client
+
+
 # these are just some fun dividiers to make the output pretty
 # completely unnecessary, I was just playing with autouse fixtures
 @pytest.fixture(scope="function", autouse=True)

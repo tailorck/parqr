@@ -32,7 +32,7 @@ logger = logging.getLogger('app')
 app.config.from_object(rq_dashboard.default_settings)
 app.register_blueprint(rq_dashboard.blueprint, url_prefix="/rq")
 
-redis = Redis(host="localhost", port="6379", db=0)
+redis = Redis(host="redishost", port="6379", db=0)
 queue = Queue(connection=redis)
 scheduler = Scheduler(connection=redis)
 
@@ -103,8 +103,16 @@ def similar_posts():
     return jsonify(similar_posts)
 
 #TODO: Add additional attributes (i.e. professor, classes etc.)
-@app.route(api_endpoint + 'class/<cid>', methods=['POST'])
-def register_class(cid):
+@app.route(api_endpoint + 'class', methods=['POST'])
+def register_class():
+    if request.get_data() == '':
+        raise InvalidUsage('No request body provided', 400)
+    if not request.json:
+        raise InvalidUsage('Request body must be in JSON format', 400)
+    if 'cid' not in request.json:
+        raise InvalidUsage('No cid string found in parameters', 400)
+
+    cid = request.json['cid']
     if not redis.exists(cid):
         job_update = scheduler.schedule(scheduled_time=datetime.now(), func=update_post,
                                         kwargs={"course_id": cid}, interval=60)
@@ -118,8 +126,16 @@ def register_class(cid):
         raise InvalidUsage('Course ID already exists', 500)
 
 
-@app.route(api_endpoint + 'class/<cid>', methods=['DELETE'])
-def deregister_class(cid):
+@app.route(api_endpoint + 'class', methods=['DELETE'])
+def deregister_class():
+    if request.get_data() == '':
+        raise InvalidUsage('No request body provided', 400)
+    if not request.json:
+        raise InvalidUsage('Request body must be in JSON format', 400)
+    if 'cid' not in request.json:
+        raise InvalidUsage('No cid string found in parameters', 400)
+
+    cid = request.json['cid']
     if redis.exists(cid):
         job_id = redis.get(cid)
         redis.delete(cid)
