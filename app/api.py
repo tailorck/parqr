@@ -3,12 +3,13 @@ import json
 import pdb
 
 from flask import jsonify, make_response, request
+from flask_jsonschema import JsonSchema, ValidationError
 import pandas as pd
 
 from app import app
 from app.modeltrain import ModelTrain
 from app.models import Course
-from exception import InvalidUsage
+from exception import InvalidUsage, to_dict
 from parqr import Parqr
 from scraper import Scraper
 
@@ -17,18 +18,35 @@ api_endpoint = '/api/'
 parqr = Parqr()
 scraper = Scraper()
 model_train = ModelTrain()
+jsonschema = JsonSchema(app)
 
 logger = logging.getLogger('app')
 
 
 @app.errorhandler(404)
 def not_found(error):
-    return make_response(jsonify({'error': 'error not found'}), 400)
+    return make_response(jsonify({'error': 'endpoint not found'}), 404)
 
 
 @app.errorhandler(InvalidUsage)
-def handle_invalid_usage(error):
-    return make_response(jsonify(error.to_dict()), error.status_code)
+def on_invalid_usage(error):
+    return make_response(jsonify(to_dict(error)), error.status_code)
+
+
+@app.errorhandler(ValidationError)
+def on_validation_error(error):
+    return make_response(jsonify(to_dict(error)), 400)
+
+
+def verify_non_empty_json_request(func):
+    def wrapper(*args, **kwargs):
+        if request.get_data() == '':
+            raise InvalidUsage('No request body provided', 400)
+        if not request.json:
+            raise InvalidUsage('Request body must be in JSON format', 400)
+        return func(*args, **kwargs)
+    wrapper.func_name = func.func_name
+    return wrapper
 
 
 @app.route('/')
@@ -37,16 +55,9 @@ def index():
 
 
 @app.route(api_endpoint + 'event', methods=['POST'])
+@verify_non_empty_json_request
+@jsonschema.validate('event')
 def register_event():
-    if request.get_data() == '':
-        raise InvalidUsage('No request body provided', 400)
-    if not request.json:
-        raise InvalidUsage('Request body must be in JSON format', 400)
-    if 'eventName' not in request.json:
-        pass
-    if 'time' not in request.json:
-        pass
-
     data = {}
     data['cid'] = request.json['eventData']['cid']
     data['type'] = request.json['eventName']
@@ -62,17 +73,15 @@ def register_event():
 
 
 @app.route(api_endpoint + 'train_all_models', methods=['POST'])
+@verify_non_empty_json_request
 def train_all_models():
     model_train.persist_all_models()
     return jsonify({'msg': 'training all models'}), 202
 
 
 @app.route(api_endpoint + 'train_model', methods=['POST'])
+@verify_non_empty_json_request
 def train_model():
-    if request.get_data() == '':
-        raise InvalidUsage('No request body provided', 400)
-    if not request.json:
-        raise InvalidUsage('Request body must be in JSON format', 400)
     if 'course_id' not in request.json:
         raise InvalidUsage('Course ID not found in JSON', 400)
 
@@ -83,11 +92,8 @@ def train_model():
 
 
 @app.route(api_endpoint + 'course', methods=['POST'])
+@verify_non_empty_json_request
 def update_course():
-    if request.get_data() == '':
-        raise InvalidUsage('No request body provided', 400)
-    if not request.json:
-        raise InvalidUsage('Request body must be in JSON format', 400)
     if 'course_id' not in request.json:
         raise InvalidUsage('Course ID not found in JSON', 400)
 
@@ -97,20 +103,9 @@ def update_course():
 
 
 @app.route(api_endpoint + 'similar_posts', methods=['POST'])
+@verify_non_empty_json_request
+@jsonschema.validate('query')
 def similar_posts():
-    if request.get_data() == '':
-        raise InvalidUsage('No request body provided', 400)
-    if not request.json:
-        raise InvalidUsage('Request body must be in JSON format', 400)
-    if 'query' not in request.json:
-        raise InvalidUsage('No query string found in parameters', 400)
-    if 'cid' not in request.json:
-        raise InvalidUsage('No cid string found in parameters', 400)
-    if 'N' not in request.json:
-        N = 5
-    else:
-        N = int(request.json['N'])
-
     course_id = request.json['cid']
     if not Course.objects(cid=course_id):
         logger.error('New un-registered course found: {}'.format(course_id))
@@ -118,5 +113,5 @@ def similar_posts():
                            "time.".format(course_id), 400)
 
     query = request.json['query']
-    similar_posts = parqr.get_recommendations(course_id, query, N)
+    similar_posts = parqr.get_recommendations(course_id, query, 5)
     return jsonify(similar_posts)

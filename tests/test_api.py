@@ -1,6 +1,7 @@
 import time
 import json
 import os
+import pdb
 
 import pytest
 
@@ -86,14 +87,14 @@ def test_similar_posts(client, Post, Course, dummy_db):
     resp = client.post(endpoint, data=json.dumps(payload),
                        content_type='application/json')
     json_resp = json.loads(resp.data)
-    assert json_resp['message'] == 'No cid string found in parameters'
+    assert json_resp['message'] == "u'cid' is a required property"
 
     # test valid N, valid cid, no query
     payload = dict(N=3, cid='j8rf9vx65vl23t')
     resp = client.post(endpoint, data=json.dumps(payload),
                        content_type='application/json')
     json_resp = json.loads(resp.data)
-    assert json_resp['message'] == 'No query string found in parameters'
+    assert json_resp['message'] == "u'query' is a required property"
 
     # test valid N, valid cid, valid query
     payload = dict(N=3, cid='j8rf9vx65vl23t', query='minimax')

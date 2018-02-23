@@ -1,0 +1,9 @@
+{
+    "type": "object",
+    "properties": {
+        "query": { "type": "string" },
+        "cid": { "type": "string" }
+    },
+    "additionalProperties": true,
+    "required": ["query", "cid"]
+}

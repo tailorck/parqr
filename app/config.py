@@ -8,9 +8,10 @@ class Config(object):
     DEBUG = False
     TESTING = False
     MONGODB_DB = 'parqr'
-    MONGODB_HOST = 'mongo'
+    MONGODB_HOST = 'localhost'
     MONGODB_PORT = 27017
     LOG_FOLDER = join(file_dir, '..', 'logs')
+    JSONSCHEMA_DIR = join(file_dir, 'schemas')
 
 
 class ProductionConfig(Config):

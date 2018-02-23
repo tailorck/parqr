@@ -1,3 +1,13 @@
+def to_dict(exception):
+    if hasattr(exception, 'payload') and exception.payload is not None:
+        rv = dict(exception.payload)
+    else:
+        rv = dict()
+
+    rv['message'] = exception.message
+    return rv
+
+
 class InvalidUsage(Exception):
     status_code = 400
 
@@ -7,8 +17,3 @@ class InvalidUsage(Exception):
         if status_code is not None:
             self.status_code = status_code
         self.payload = payload
-
-    def to_dict(self):
-        rv = dict(self.payload or ())
-        rv['message'] = self.message
-        return rv
