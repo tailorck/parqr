@@ -16,7 +16,7 @@ services:
             - '27017:27017'
 
     app:
-        command: gunicorn --bind=0.0.0.0 app.api:app --reload --log-level DEBUG --timeout 300
+        command: gunicorn app.api:app
         environment:
             - FLASK_CONF=production
         build:
