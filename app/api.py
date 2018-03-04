@@ -102,7 +102,8 @@ def similar_posts():
     similar_posts = parqr.get_recommendations(course_id, query, N)
     return jsonify(similar_posts)
 
-#TODO: Add additional attributes (i.e. professor, classes etc.)
+
+# TODO: Add additional attributes (i.e. professor, classes etc.)
 @app.route(api_endpoint + 'class', methods=['POST'])
 def register_class():
     if request.get_data() == '':
