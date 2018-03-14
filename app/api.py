@@ -42,10 +42,6 @@ def register_event():
         raise InvalidUsage('No request body provided', 400)
     if not request.json:
         raise InvalidUsage('Request body must be in JSON format', 400)
-    if 'eventName' not in request.json:
-        pass
-    if 'time' not in request.json:
-        pass
 
     data = {}
     data['cid'] = request.json['eventData']['cid']
@@ -54,6 +50,9 @@ def register_event():
     data['time'] = request.json['time']
 
     df = pd.DataFrame(data, index=[0])
+
+    logger.info('Recorded {} event from cid {}'
+                .format(data['type'], data['cid']))
 
     with open('events.csv', 'a') as outfile:
         df.to_csv(outfile, header=False, index=False)
