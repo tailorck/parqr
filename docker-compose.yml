@@ -1,12 +1,10 @@
 version: '2'
 services:
     queue:
-        image: rabbitmq:latest
-        environment:
-            - RABBITMQ_DEFAULT_USER=admin
-            - RABBITMQ_DEFAULT_PASS=mypass
+        image: redis:latest
+        command: redis-server
         ports:
-            - "5672:5672"
+            - "6379:6379"
 
     db:
         image: mongo:latest
@@ -15,21 +13,45 @@ services:
         depends_on:
             - queue
         ports:
-            - '27019:27017'
+            - '27017:27017'
 
     app:
-        command: gunicorn --bind=0.0.0.0 app.api:app --reload --log-level DEBUG --timeout 300
+        command: gunicorn --bind=0.0.0.0 app.api:app
         environment:
             - FLASK_CONF=production
         build:
             context: .
             dockerfile: Dockerfile
         links:
-          - queue:rabbitmq
+          - queue:redishost
           - db:mongo
-        volumes:
-            - .:/app
         depends_on:
             - db
         ports:
             - "8000:8000"
+
+    worker:
+        command: rqworker --url redis://redishost:6379/0
+        environment:
+            - FLASK_CONF=production
+        build:
+            context: .
+            dockerfile: Dockerfile
+        links:
+          - queue:redishost
+          - db:mongo
+        depends_on:
+            - app
+
+    scheduler:
+        command: rqscheduler --host redishost --port 6379 --db 0
+        environment:
+            - FLASK_CONF=production
+        build:
+            context: .
+            dockerfile: Dockerfile
+        links:
+          - queue:redishost
+          - db:mongo
+        depends_on:
+            - app

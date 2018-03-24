@@ -12,7 +12,7 @@ from models import Course, Post
 from utils import read_credentials, stringify_followups
 
 
-class Scraper():
+class Scraper(object):
 
     def __init__(self):
         """Initialize the Piazza object and login with the encrypted username
@@ -23,6 +23,9 @@ class Scraper():
         self._logger = logging.getLogger('app')
 
         self._login()
+
+    def test(self, course_id):
+        return course_id
 
     def update_posts(self, course_id):
         """Creates a thread task to update all posts in a course
