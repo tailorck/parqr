@@ -4,6 +4,7 @@ import logging
 import pandas as pd
 
 from app import app
+from app.parser import Parser
 from app.modeltrain import ModelTrain
 from app.models import Course
 from exception import InvalidUsage
@@ -20,6 +21,7 @@ from tasksrq import parse_posts, train_models
 api_endpoint = '/api/'
 
 parqr = Parqr()
+parser = Parser()
 model_train = ModelTrain()
 
 logger = logging.getLogger('app')
@@ -45,6 +47,26 @@ def handle_invalid_usage(error):
 @app.route('/')
 def index():
     return "Hello, World!"
+
+
+@app.route(api_endpoint + 'train_all_models', methods=['POST'])
+def train_all_models():
+    model_train.persist_all_models()
+    return jsonify({'msg': 'training all models'}), 202
+
+
+@app.route(api_endpoint + 'course', methods=['POST'])
+def update_course():
+    if request.get_data() == '':
+        raise InvalidUsage('No request body provided', 400)
+    if not request.json:
+        raise InvalidUsage('Request body must be in JSON format', 400)
+    if 'course_id' not in request.json:
+        raise InvalidUsage('Course ID not found in JSON', 400)
+
+    course_id = request.json['course_id']
+    parser.update_posts(course_id)
+    return jsonify({'course_id': course_id}), 202
 
 
 @app.route(api_endpoint + 'event', methods=['POST'])
@@ -87,7 +109,7 @@ def similar_posts():
         N = int(request.json['N'])
 
     course_id = request.json['cid']
-    if not Course.objects(cid=course_id):
+    if not redis.exists(course_id):
         logger.error('New un-registered course found: {}'.format(course_id))
         raise InvalidUsage("Course with cid {} not supported at this "
                            "time.".format(course_id), 400)
@@ -109,15 +131,16 @@ def register_class():
 
     cid = request.json['cid']
     if not redis.exists(cid):
+        logger.info('Registering new course: {}'.format(cid))
         curr_time = datetime.now()
-        delayed_time = curr_time + timedelta(minutes=2)
+        delayed_time = curr_time + timedelta(minutes=5)
 
         parse_job = scheduler.schedule(scheduled_time=curr_time,
                                        func=parse_posts,
-                                       kwargs={"course_id": cid}, interval=300)
+                                       kwargs={"course_id": cid}, interval=900)
         train_job = scheduler.schedule(scheduled_time=delayed_time,
                                        func=train_models,
-                                       kwargs={"course_id": cid}, interval=300)
+                                       kwargs={"course_id": cid}, interval=900)
         redis.set(cid, ','.join([parse_job.id, train_job.id]))
         return jsonify({'course_id': cid}), 202
     else:
@@ -135,6 +158,7 @@ def deregister_class():
 
     cid = request.json['cid']
     if redis.exists(cid):
+        logger.info('Deregistering course: {}'.format(cid))
         job_id_strs = redis.get(cid)
         jobs = filter(lambda job: str(job.id) in job_id_strs,
                       [j for j in scheduler.get_jobs()])
