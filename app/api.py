@@ -1,10 +1,6 @@
+from datetime import datetime, timedelta
+from hashlib import md5
 import logging
-import json
-import pdb
-import pickle
-
-from datetime import datetime
-from flask import jsonify, make_response, request
 import pandas as pd
 
 from app import app
@@ -12,19 +8,18 @@ from app.modeltrain import ModelTrain
 from app.models import Course
 from exception import InvalidUsage
 from parqr import Parqr
-from scraper import Scraper
 
+from flask import jsonify, make_response, request
 from redis import Redis
 from rq import Queue
 from rq_scheduler import Scheduler
 import rq_dashboard
 
-from tasksrq import update_post, train_model
+from tasksrq import parse_posts, train_models
 
 api_endpoint = '/api/'
 
 parqr = Parqr()
-scraper = Scraper()
 model_train = ModelTrain()
 
 logger = logging.getLogger('app')
@@ -39,7 +34,7 @@ scheduler = Scheduler(connection=redis)
 
 @app.errorhandler(404)
 def not_found(error):
-    return make_response(jsonify({'error': 'error not found'}), 400)
+    return make_response(jsonify({'error': 'error not found'}), 404)
 
 
 @app.errorhandler(InvalidUsage)
@@ -59,7 +54,7 @@ def register_event():
     if not request.json:
         raise InvalidUsage('Request body must be in JSON format', 400)
 
-    data = {}
+    data = dict()
     data['cid'] = request.json['eventData']['cid']
     data['type'] = request.json['eventName']
     data['uid'] = request.json['uid']
@@ -98,8 +93,8 @@ def similar_posts():
                            "time.".format(course_id), 400)
 
     query = request.json['query']
-    similar_posts = parqr.get_recommendations(course_id, query, N)
-    return jsonify(similar_posts)
+    recommendations = parqr.get_recommendations(course_id, query, N)
+    return jsonify(recommendations)
 
 
 # TODO: Add additional attributes (i.e. professor, classes etc.)
@@ -114,13 +109,16 @@ def register_class():
 
     cid = request.json['cid']
     if not redis.exists(cid):
-        job_update = scheduler.schedule(scheduled_time=datetime.now(), func=update_post,
-                                        kwargs={"course_id": cid}, interval=60)
-        job_train = scheduler.schedule(scheduled_time=datetime.now(), func=train_model,
-                                       kwargs={"course_id": cid}, interval=60)
+        curr_time = datetime.now()
+        delayed_time = curr_time + timedelta(minutes=2)
 
-        serial_ids = pickle.dumps([str(job_update.id), str(job_train.id)])
-        redis.set(cid, serial_ids)
+        parse_job = scheduler.schedule(scheduled_time=curr_time,
+                                       func=parse_posts,
+                                       kwargs={"course_id": cid}, interval=300)
+        train_job = scheduler.schedule(scheduled_time=delayed_time,
+                                       func=train_models,
+                                       kwargs={"course_id": cid}, interval=300)
+        redis.set(cid, ','.join([parse_job.id, train_job.id]))
         return jsonify({'course_id': cid}), 202
     else:
         raise InvalidUsage('Course ID already exists', 500)
@@ -137,11 +135,12 @@ def deregister_class():
 
     cid = request.json['cid']
     if redis.exists(cid):
-        job_id = redis.get(cid)
-        redis.delete(cid)
-        jobs = filter(lambda job: str(job.id) == job_id, [j for j in scheduler.get_jobs()])
+        job_id_strs = redis.get(cid)
+        jobs = filter(lambda job: str(job.id) in job_id_strs,
+                      [j for j in scheduler.get_jobs()])
         for job in jobs:
             scheduler.cancel(job)
+        redis.delete(cid)
         return jsonify({'course_id': cid}), 202
     else:
         raise InvalidUsage('Course ID does not exists', 500)
