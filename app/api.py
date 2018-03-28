@@ -109,7 +109,7 @@ def similar_posts():
         N = int(request.json['N'])
 
     course_id = request.json['cid']
-    if not redis.exists(course_id):
+    if not Course.objects(cid=course_id):
         logger.error('New un-registered course found: {}'.format(course_id))
         raise InvalidUsage("Course with cid {} not supported at this "
                            "time.".format(course_id), 400)
@@ -126,10 +126,10 @@ def register_class():
         raise InvalidUsage('No request body provided', 400)
     if not request.json:
         raise InvalidUsage('Request body must be in JSON format', 400)
-    if 'cid' not in request.json:
+    if 'course_id' not in request.json:
         raise InvalidUsage('No cid string found in parameters', 400)
 
-    cid = request.json['cid']
+    cid = request.json['course_id']
     if not redis.exists(cid):
         logger.info('Registering new course: {}'.format(cid))
         curr_time = datetime.now()
@@ -153,10 +153,10 @@ def deregister_class():
         raise InvalidUsage('No request body provided', 400)
     if not request.json:
         raise InvalidUsage('Request body must be in JSON format', 400)
-    if 'cid' not in request.json:
+    if 'course_id' not in request.json:
         raise InvalidUsage('No cid string found in parameters', 400)
 
-    cid = request.json['cid']
+    cid = request.json['course_id']
     if redis.exists(cid):
         logger.info('Deregistering course: {}'.format(cid))
         job_id_strs = redis.get(cid)
