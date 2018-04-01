@@ -12,7 +12,7 @@ from models import Course, Post
 from utils import read_credentials, stringify_followups
 
 
-class Scraper(object):
+class Parser(object):
 
     def __init__(self):
         """Initialize the Piazza object and login with the encrypted username
@@ -24,12 +24,11 @@ class Scraper(object):
 
         self._login()
 
-    def test(self, course_id):
-        return course_id
-
     def update_posts(self, course_id):
         """Creates a thread task to update all posts in a course
 
+        Retrieves all new posts in course that are not already in database
+        and updates old posts that have been modified
         Parameters
         ----------
         course_id : str
@@ -39,6 +38,9 @@ class Scraper(object):
             raise InvalidUsage('Background thread is running', 500)
 
         network = self._piazza.network(course_id)
+
+        # TODO: Remove threaded operations after converting to docker container
+        # deployments
         self._threads[course_id] = Thread(target=self._update_posts,
                                           args=(course_id, network,))
 
@@ -47,7 +49,6 @@ class Scraper(object):
     def _update_posts(self, course_id, network):
         """Retrieves all new posts in course that are not already in database
         and updates old posts that have been modified
-
         Parameters
         ----------
         course_id : str
@@ -55,7 +56,6 @@ class Scraper(object):
         network : piazza_api.network
             A handle to the network object for the course
         """
-        self._logger.info('Retrieving posts for: {}'.format(course_id))
         stats = network.get_statistics()
         total_questions = stats['total']['questions']
         pbar = ProgressBar(maxval=total_questions)
@@ -108,7 +108,6 @@ class Scraper(object):
         time_elapsed = end_time - start_time
         self._logger.info('Course updated. {} posts scraped in: '
                           '{:.2f}s'.format(total_questions, time_elapsed))
-        self._threads.pop(course_id)
 
     def _check_for_updates(self, curr_post, new_fields):
         """Checks if post has been updated since last scrape.
@@ -243,8 +242,6 @@ class Scraper(object):
             self._logger.error("Incorrect Email/Password found in "
                                "encrypted file store")
             self._login_with_input()
-
-        self._logger.info('Ready to serve requests')
 
     def _login_with_input(self):
         """Prompt the user to input username and password to login to Piazza"""

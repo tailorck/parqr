@@ -1,30 +1,27 @@
+from datetime import datetime, timedelta
+from hashlib import md5
 import logging
-import json
-import pdb
-import pickle
-
-from datetime import datetime
-from flask import jsonify, make_response, request
 import pandas as pd
 
 from app import app
+from app.parser import Parser
 from app.modeltrain import ModelTrain
 from app.models import Course
 from exception import InvalidUsage
 from parqr import Parqr
-from scraper import Scraper
 
+from flask import jsonify, make_response, request
 from redis import Redis
 from rq import Queue
 from rq_scheduler import Scheduler
 import rq_dashboard
 
-from tasksrq import update_post, train_model
+from tasksrq import parse_posts, train_models
 
 api_endpoint = '/api/'
 
 parqr = Parqr()
-scraper = Scraper()
+parser = Parser()
 model_train = ModelTrain()
 
 logger = logging.getLogger('app')
@@ -39,7 +36,7 @@ scheduler = Scheduler(connection=redis)
 
 @app.errorhandler(404)
 def not_found(error):
-    return make_response(jsonify({'error': 'error not found'}), 400)
+    return make_response(jsonify({'error': 'error not found'}), 404)
 
 
 @app.errorhandler(InvalidUsage)
@@ -52,6 +49,26 @@ def index():
     return "Hello, World!"
 
 
+@app.route(api_endpoint + 'train_all_models', methods=['POST'])
+def train_all_models():
+    model_train.persist_all_models()
+    return jsonify({'msg': 'training all models'}), 202
+
+
+@app.route(api_endpoint + 'course', methods=['POST'])
+def update_course():
+    if request.get_data() == '':
+        raise InvalidUsage('No request body provided', 400)
+    if not request.json:
+        raise InvalidUsage('Request body must be in JSON format', 400)
+    if 'course_id' not in request.json:
+        raise InvalidUsage('Course ID not found in JSON', 400)
+
+    course_id = request.json['course_id']
+    parser.update_posts(course_id)
+    return jsonify({'course_id': course_id}), 202
+
+
 @app.route(api_endpoint + 'event', methods=['POST'])
 def register_event():
     if request.get_data() == '':
@@ -59,7 +76,7 @@ def register_event():
     if not request.json:
         raise InvalidUsage('Request body must be in JSON format', 400)
 
-    data = {}
+    data = dict()
     data['cid'] = request.json['eventData']['cid']
     data['type'] = request.json['eventName']
     data['uid'] = request.json['uid']
@@ -98,8 +115,8 @@ def similar_posts():
                            "time.".format(course_id), 400)
 
     query = request.json['query']
-    similar_posts = parqr.get_recommendations(course_id, query, N)
-    return jsonify(similar_posts)
+    recommendations = parqr.get_recommendations(course_id, query, N)
+    return jsonify(recommendations)
 
 
 # TODO: Add additional attributes (i.e. professor, classes etc.)
@@ -109,18 +126,22 @@ def register_class():
         raise InvalidUsage('No request body provided', 400)
     if not request.json:
         raise InvalidUsage('Request body must be in JSON format', 400)
-    if 'cid' not in request.json:
+    if 'course_id' not in request.json:
         raise InvalidUsage('No cid string found in parameters', 400)
 
-    cid = request.json['cid']
+    cid = request.json['course_id']
     if not redis.exists(cid):
-        job_update = scheduler.schedule(scheduled_time=datetime.now(), func=update_post,
-                                        kwargs={"course_id": cid}, interval=60)
-        job_train = scheduler.schedule(scheduled_time=datetime.now(), func=train_model,
-                                       kwargs={"course_id": cid}, interval=60)
+        logger.info('Registering new course: {}'.format(cid))
+        curr_time = datetime.now()
+        delayed_time = curr_time + timedelta(minutes=5)
 
-        serial_ids = pickle.dumps([str(job_update.id), str(job_train.id)])
-        redis.set(cid, serial_ids)
+        parse_job = scheduler.schedule(scheduled_time=curr_time,
+                                       func=parse_posts,
+                                       kwargs={"course_id": cid}, interval=900)
+        train_job = scheduler.schedule(scheduled_time=delayed_time,
+                                       func=train_models,
+                                       kwargs={"course_id": cid}, interval=900)
+        redis.set(cid, ','.join([parse_job.id, train_job.id]))
         return jsonify({'course_id': cid}), 202
     else:
         raise InvalidUsage('Course ID already exists', 500)
@@ -132,16 +153,18 @@ def deregister_class():
         raise InvalidUsage('No request body provided', 400)
     if not request.json:
         raise InvalidUsage('Request body must be in JSON format', 400)
-    if 'cid' not in request.json:
+    if 'course_id' not in request.json:
         raise InvalidUsage('No cid string found in parameters', 400)
 
-    cid = request.json['cid']
+    cid = request.json['course_id']
     if redis.exists(cid):
-        job_id = redis.get(cid)
-        redis.delete(cid)
-        jobs = filter(lambda job: str(job.id) == job_id, [j for j in scheduler.get_jobs()])
+        logger.info('Deregistering course: {}'.format(cid))
+        job_id_strs = redis.get(cid)
+        jobs = filter(lambda job: str(job.id) in job_id_strs,
+                      [j for j in scheduler.get_jobs()])
         for job in jobs:
             scheduler.cancel(job)
+        redis.delete(cid)
         return jsonify({'course_id': cid}), 202
     else:
         raise InvalidUsage('Course ID does not exists', 500)

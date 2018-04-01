@@ -189,6 +189,8 @@ class Parqr(object):
 
         if cid not in self._course_dict:
             course_info = CourseInfo(cid)
+        else:
+            course_info = self._course_dict[cid]
 
         for model_name in TFIDF_MODELS:
             skmodel, matrix, pid_list = self._model_cache.get_all(cid, model_name)

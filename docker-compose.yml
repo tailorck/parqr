@@ -23,8 +23,8 @@ services:
             context: .
             dockerfile: Dockerfile
         links:
-          - queue:redishost
-          - db:mongo
+            - queue:redishost
+            - db:mongo
         depends_on:
             - db
         ports:
