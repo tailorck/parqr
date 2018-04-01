@@ -8,9 +8,9 @@
         "eventData": {
             "type": "object",
             "properties": {
-                "cid": { "type": "string" }
+                "course_id": { "type": "string" }
             },
-            "required": ["cid"],
+            "required": ["course_id"],
             "additionalProperties": true
         }
     },

@@ -71,7 +71,7 @@ def index():
 @jsonschema.validate('event')
 def register_event():
     data = {}
-    data['cid'] = request.json['eventData']['cid']
+    data['course_id'] = request.json['eventData']['course_id']
     data['type'] = request.json['eventName']
     data['uid'] = request.json['uid']
     data['time'] = request.json['time']
@@ -81,21 +81,21 @@ def register_event():
     with open('events.csv', 'a') as outfile:
         df.to_csv(outfile, header=False, index=False)
 
-    return jsonify({'msg': 'success'}), 200
+    return jsonify({'message': 'success'}), 200
 
 
 @app.route(api_endpoint + 'train_all_models', methods=['POST'])
 @verify_non_empty_json_request
 def train_all_models():
     model_train.persist_all_models()
-    return jsonify({'msg': 'training all models'}), 202
+    return jsonify({'message': 'training all models'}), 202
 
 
 @app.route(api_endpoint + 'train_model', methods=['POST'])
 @verify_non_empty_json_request
 @jsonschema.validate('train_model')
 def train_model():
-    cid = request.json['cid']
+    cid = request.json['course_id']
     model_train.persist_model(cid)
 
     return jsonify({'course_id': cid}), 202
@@ -115,10 +115,10 @@ def update_course():
 @verify_non_empty_json_request
 @jsonschema.validate('query')
 def similar_posts():
-    course_id = request.json['cid']
+    course_id = request.json['course_id']
     if not Course.objects(cid=course_id):
         logger.error('New un-registered course found: {}'.format(course_id))
-        raise InvalidUsage("Course with cid {} not supported at this "
+        raise InvalidUsage("Course with course id {} not supported at this "
                            "time.".format(course_id), 400)
 
     query = request.json['query']
