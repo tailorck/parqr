@@ -45,6 +45,8 @@ class ModelTrain(object):
         if cid in self._threads and self._threads[cid].is_alive():
             raise InvalidUsage('Background thread is running', 500)
 
+        # TODO: Remove threaded operations after conversion to docker
+        # deployment
         self._threads[cid] = Thread(target=self._persist_model, args=(cid,))
         self._threads[cid].start()
 

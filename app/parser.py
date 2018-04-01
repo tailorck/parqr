@@ -38,6 +38,9 @@ class Parser(object):
             raise InvalidUsage('Background thread is running', 500)
 
         network = self._piazza.network(course_id)
+
+        # TODO: Remove threaded operations after converting to docker container
+        # deployments
         self._threads[course_id] = Thread(target=self._update_posts,
                                           args=(course_id, network,))
 
