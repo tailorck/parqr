@@ -188,15 +188,17 @@ class Parqr(object):
         logger.info("Loading all models for cid: {}".format(cid))
 
         if cid not in self._course_dict:
-            self._course_dict[cid] = CourseInfo(cid)
+            course_info = CourseInfo(cid)
+        else:
+            course_info = self._course_dict[cid]
 
-        course_info = self._course_dict[cid]
         for model_name in TFIDF_MODELS:
             skmodel, matrix, pid_list = self._model_cache.get_all(cid, model_name)
             course_info.models[model_name] = ModelInfo(model_name, skmodel,
                                                        matrix, pid_list)
 
         course_info.last_load = datetime.now()
+        self._course_dict[cid] = course_info
 
     def _get_all_pids(self, cid):
         """Retrives the valid post_ids for a particular course.

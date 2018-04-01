@@ -71,3 +71,6 @@ virtualenvwrapper==4.8.2
 Werkzeug==0.14.1
 WTForms==2.1
 yolk==0.4.3
+rq
+rq-dashboard
+rq-scheduler==0.7.0

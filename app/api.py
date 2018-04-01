@@ -1,26 +1,38 @@
+from datetime import datetime, timedelta
+from hashlib import md5
 import logging
-import json
-import pdb
 
 from flask import jsonify, make_response, request
 from flask_jsonschema import JsonSchema, ValidationError
+from redis import Redis
+from rq import Queue
+from rq_scheduler import Scheduler
+import rq_dashboard
 import pandas as pd
 
 from app import app
+from app.parser import Parser
 from app.modeltrain import ModelTrain
 from app.models import Course
+from tasksrq import parse_posts, train_models
 from exception import InvalidUsage, to_dict
 from parqr import Parqr
-from scraper import Scraper
 
 api_endpoint = '/api/'
 
 parqr = Parqr()
-scraper = Scraper()
+parser = Parser()
 model_train = ModelTrain()
 jsonschema = JsonSchema(app)
 
 logger = logging.getLogger('app')
+
+app.config.from_object(rq_dashboard.default_settings)
+app.register_blueprint(rq_dashboard.blueprint, url_prefix="/rq")
+
+redis = Redis(host="redishost", port="6379", db=0)
+queue = Queue(connection=redis)
+scheduler = Scheduler(connection=redis)
 
 
 @app.errorhandler(404)
@@ -81,24 +93,21 @@ def train_all_models():
 
 @app.route(api_endpoint + 'train_model', methods=['POST'])
 @verify_non_empty_json_request
+@jsonschema.validate('train_model')
 def train_model():
-    if 'course_id' not in request.json:
-        raise InvalidUsage('Course ID not found in JSON', 400)
-
-    cid = request.json['course_id']
+    cid = request.json['cid']
     model_train.persist_model(cid)
 
     return jsonify({'course_id': cid}), 202
+    pass
 
 
 @app.route(api_endpoint + 'course', methods=['POST'])
 @verify_non_empty_json_request
+@jsonschema.validate('course')
 def update_course():
-    if 'course_id' not in request.json:
-        raise InvalidUsage('Course ID not found in JSON', 400)
-
     course_id = request.json['course_id']
-    scraper.update_posts(course_id)
+    parser.update_posts(course_id)
     return jsonify({'course_id': course_id}), 202
 
 
@@ -115,3 +124,44 @@ def similar_posts():
     query = request.json['query']
     similar_posts = parqr.get_recommendations(course_id, query, 5)
     return jsonify(similar_posts)
+
+
+# TODO: Add additional attributes (i.e. professor, classes etc.)
+@app.route(api_endpoint + 'class', methods=['POST'])
+@verify_non_empty_json_request
+@jsonschema.validate('class')
+def register_class():
+    cid = request.json['course_id']
+    if not redis.exists(cid):
+        logger.info('Registering new course: {}'.format(cid))
+        curr_time = datetime.now()
+        delayed_time = curr_time + timedelta(minutes=5)
+
+        parse_job = scheduler.schedule(scheduled_time=curr_time,
+                                       func=parse_posts,
+                                       kwargs={"course_id": cid}, interval=900)
+        train_job = scheduler.schedule(scheduled_time=delayed_time,
+                                       func=train_models,
+                                       kwargs={"course_id": cid}, interval=900)
+        redis.set(cid, ','.join([parse_job.id, train_job.id]))
+        return jsonify({'course_id': cid}), 202
+    else:
+        raise InvalidUsage('Course ID already exists', 500)
+
+
+@app.route(api_endpoint + 'class', methods=['DELETE'])
+@verify_non_empty_json_request
+@jsonschema.validate('class')
+def deregister_class():
+    cid = request.json['course_id']
+    if redis.exists(cid):
+        logger.info('Deregistering course: {}'.format(cid))
+        job_id_strs = redis.get(cid)
+        jobs = filter(lambda job: str(job.id) in job_id_strs,
+                      [j for j in scheduler.get_jobs()])
+        for job in jobs:
+            scheduler.cancel(job)
+        redis.delete(cid)
+        return jsonify({'course_id': cid}), 202
+    else:
+        raise InvalidUsage('Course ID does not exists', 500)

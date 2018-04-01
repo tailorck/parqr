@@ -31,6 +31,8 @@ class TestingConfig(Config):
     DEBUG = True
     TESTING = True
     MONGODB_DB = 'test_parqr'
+    MONGODB_HOST = 'localhost'
+    MONGODB_PORT = 27017
 
 
 config_dict = {
