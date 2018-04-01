@@ -1,0 +1,8 @@
+{
+    "type": "object",
+    "properties": {
+        "cid": { "type": "string" }
+    },
+    "additionalProperties": true,
+    "required": ["cid"]
+}
