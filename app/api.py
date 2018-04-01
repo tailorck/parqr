@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 from hashlib import md5
 import logging
-import pdb
 
 from flask import jsonify, make_response, request
 from flask_jsonschema import JsonSchema, ValidationError
@@ -28,14 +27,12 @@ jsonschema = JsonSchema(app)
 
 logger = logging.getLogger('app')
 
-'''
 app.config.from_object(rq_dashboard.default_settings)
 app.register_blueprint(rq_dashboard.blueprint, url_prefix="/rq")
 
 redis = Redis(host="redishost", port="6379", db=0)
 queue = Queue(connection=redis)
 scheduler = Scheduler(connection=redis)
-'''
 
 logger.info('Ready to serve requests')
 
