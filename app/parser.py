@@ -61,7 +61,7 @@ class Parser(object):
         pbar = ProgressBar(maxval=total_questions)
 
         # Get handle to the corresponding course document or create a new one
-        course = Course.objects(cid=course_id)
+        course = Course.objects(course_id=course_id)
         if not course:
             course = Course(course_id).save()
 
@@ -88,8 +88,8 @@ class Parser(object):
 
             # If post exists, check if it has been updated and update db if
             # necessary. Else, insert new post and add to course's post list
-            if Post.objects(cid=course_id, pid=pid):
-                db_post = Post.objects.get(cid=course_id, pid=pid)
+            if Post.objects(course_id=course_id, post_id=pid):
+                db_post = Post.objects.get(course_id=course_id, post_id=pid)
                 new_fields = dict(subject=subject, body=body,
                                   s_answer=s_answer, i_answer=i_answer,
                                   followups=followups)

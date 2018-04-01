@@ -10,8 +10,8 @@ class Followup(db.EmbeddedDocument):
 
 
 class Post(db.Document):
-    cid = db.StringField(required=True)
-    pid = db.IntField(required=True, unique_with='cid')
+    course_id = db.StringField(required=True)
+    post_id = db.IntField(required=True, unique_with='course_id')
     subject = db.StringField(required=True)
     body = db.StringField(required=True)
     tags = db.ListField(db.StringField(), requred=True)
@@ -28,8 +28,8 @@ class Post(db.Document):
 
         attrs = []
         print '<{}: id={!r}>'.format(type(self).__name__, self.id)
-        fields = ['cid', 'pid', 'subject', 'body', 'tags', 's_answer',
-                  'i_answer', 'followups']
+        fields = ['course_id', 'post_id', 'subject', 'body', 'tags',
+                  's_answer', 'i_answer', 'followups']
         for name in fields:
             value = getattr(self, name)
             if isinstance(value, unicode):
@@ -38,5 +38,18 @@ class Post(db.Document):
 
 
 class Course(db.Document):
-    cid = db.StringField(required=True, unique=True)
+    course_id = db.StringField(required=True, unique=True)
     posts = db.ListField(db.ReferenceField(Post, unique=True))
+
+
+class EventData(db.EmbeddedDocument):
+    course_id = db.StringField(required=True)
+
+
+class Event(db.Document):
+    event_type = db.StringField(required=True)
+    event_name = db.StringField(required=True)
+    time = db.DateTimeField(required=True)
+    user_id = db.StringField(required=True)
+    event_data = db.EmbeddedDocumentField(EventData, default=EventData,
+                                          required=True)

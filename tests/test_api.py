@@ -42,8 +42,8 @@ def test_hello_world(client):
 # The order of these tests is important. test_update_course must come before
 # test_similar_posts
 def test_update_course(client, Post, Course):
-    Post.objects(cid='j8rf9vx65vl23t').delete()
-    Course.objects(cid='j8rf9vx65vl23t').delete()
+    Post.objects(course_id='j8rf9vx65vl23t').delete()
+    Course.objects(course_id='j8rf9vx65vl23t').delete()
 
     endpoint = '/api/course'
 
@@ -64,7 +64,7 @@ def test_update_course(client, Post, Course):
     time.sleep(3)
     json_resp = json.loads(resp.data)
     assert json_resp['course_id'] == 'j8rf9vx65vl23t'
-    assert Course.objects().first().cid == 'j8rf9vx65vl23t'
+    assert Course.objects().first().course_id == 'j8rf9vx65vl23t'
     assert len(Post.objects()) != 0
 
 

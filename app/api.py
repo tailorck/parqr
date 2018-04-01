@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from hashlib import md5
 import logging
+import pdb
 
 from flask import jsonify, make_response, request
 from flask_jsonschema import JsonSchema, ValidationError
@@ -13,7 +14,7 @@ import pandas as pd
 from app import app
 from app.parser import Parser
 from app.modeltrain import ModelTrain
-from app.models import Course
+from app.models import Course, Event, EventData
 from tasksrq import parse_posts, train_models
 from exception import InvalidUsage, to_dict
 from parqr import Parqr
@@ -27,12 +28,16 @@ jsonschema = JsonSchema(app)
 
 logger = logging.getLogger('app')
 
+'''
 app.config.from_object(rq_dashboard.default_settings)
 app.register_blueprint(rq_dashboard.blueprint, url_prefix="/rq")
 
 redis = Redis(host="redishost", port="6379", db=0)
 queue = Queue(connection=redis)
 scheduler = Scheduler(connection=redis)
+'''
+
+logger.info('Ready to serve requests')
 
 
 @app.errorhandler(404)
@@ -70,16 +75,16 @@ def index():
 @verify_non_empty_json_request
 @jsonschema.validate('event')
 def register_event():
-    data = {}
-    data['course_id'] = request.json['eventData']['course_id']
-    data['type'] = request.json['eventName']
-    data['uid'] = request.json['uid']
-    data['time'] = request.json['time']
+    millis_since_epoch = request.json['time'] / 1000.0
 
-    df = pd.DataFrame(data, index=[0])
+    event = Event()
+    event.event_type = request.json['type']
+    event.event_name = request.json['eventName']
+    event.time = datetime.fromtimestamp(millis_since_epoch)
+    event.user_id = request.json['user_id']
+    event.event_data = EventData(**request.json['eventData'])
 
-    with open('events.csv', 'a') as outfile:
-        df.to_csv(outfile, header=False, index=False)
+    event.save()
 
     return jsonify({'message': 'success'}), 200
 
@@ -116,7 +121,7 @@ def update_course():
 @jsonschema.validate('query')
 def similar_posts():
     course_id = request.json['course_id']
-    if not Course.objects(cid=course_id):
+    if not Course.objects(course_id=course_id):
         logger.error('New un-registered course found: {}'.format(course_id))
         raise InvalidUsage("Course with course id {} not supported at this "
                            "time.".format(course_id), 400)

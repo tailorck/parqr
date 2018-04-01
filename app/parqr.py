@@ -92,7 +92,7 @@ class Parqr(object):
         # Return post id, subject, and score for the top N scores in the df
         top_posts = {}
         for pid in final_scores.index[:N]:
-            post = Post.objects.get(cid=cid, pid=pid)
+            post = Post.objects.get(course_id=cid, post_id=pid)
             score = final_scores.loc[pid][0]
             subject = post.subject
             s_answer = True if post.s_answer != None else False
@@ -213,7 +213,7 @@ class Parqr(object):
             list: A list of all the valid post_ids
         """
         pids = []
-        for post in Post.objects(cid=cid):
-            pids.append(post.pid)
+        for post in Post.objects(course_id=cid):
+            pids.append(post.post_id)
 
         return pids

@@ -4,7 +4,7 @@
         "type": { "type": "string" },
         "eventName": { "type": "string" },
         "time": { "type": "number" },
-        "uid": { "type": "string" },
+        "user_id": { "type": "string" },
         "eventData": {
             "type": "object",
             "properties": {
@@ -14,5 +14,5 @@
             "additionalProperties": true
         }
     },
-    "required": ["type", "eventName", "time", "uid", "eventData"]
+    "required": ["type", "eventName", "time", "user_id", "eventData"]
 }
