@@ -1,0 +1,8 @@
+{
+    "type": "object",
+    "properties": {
+        "course_id": { "type": "string" }
+    },
+    "additionalProperties": true,
+    "required": ["course_id"]
+}

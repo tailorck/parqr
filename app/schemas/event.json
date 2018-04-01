@@ -1,0 +1,18 @@
+{
+    "type": "object",
+    "properties": {
+        "type": { "type": "string" },
+        "eventName": { "type": "string" },
+        "time": { "type": "number" },
+        "uid": { "type": "string" },
+        "eventData": {
+            "type": "object",
+            "properties": {
+                "course_id": { "type": "string" }
+            },
+            "required": ["course_id"],
+            "additionalProperties": true
+        }
+    },
+    "required": ["type", "eventName", "time", "uid", "eventData"]
+}

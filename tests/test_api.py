@@ -86,23 +86,23 @@ def test_similar_posts(client, Post, Course, dummy_db):
     resp = client.post(endpoint, data=json.dumps(payload),
                        content_type='application/json')
     json_resp = json.loads(resp.data)
-    assert json_resp['message'] == 'No cid string found in parameters'
+    assert json_resp['message'] == "u'course_id' is a required property"
 
     # test valid N, valid cid, no query
-    payload = dict(N=3, cid='j8rf9vx65vl23t')
+    payload = dict(N=3, course_id='j8rf9vx65vl23t')
     resp = client.post(endpoint, data=json.dumps(payload),
                        content_type='application/json')
     json_resp = json.loads(resp.data)
-    assert json_resp['message'] == 'No query string found in parameters'
+    assert json_resp['message'] == "u'query' is a required property"
 
     # test valid N, valid cid, valid query
-    payload = dict(N=3, cid='j8rf9vx65vl23t', query='minimax')
+    payload = dict(N=3, course_id='j8rf9vx65vl23t', query='minimax')
     resp = client.post(endpoint, data=json.dumps(payload),
                        content_type='application/json')
     assert resp.status_code == 200
 
     # test valid N, invalid cid, valid query
-    payload = dict(N=3, cid='abc123', query='minimax')
+    payload = dict(N=3, course_id='abc123', query='minimax')
     resp = client.post(endpoint, data=json.dumps(payload),
                        content_type='application/json')
     assert resp.status_code == 400
