@@ -42,7 +42,7 @@ jobs:
           command: |
             . venv/bin/activate
             mkdir ~/repo/logs
-            pytest tests/test_api.py
+            pytest tests/test_model_cache.py
       - store_artifacts:
           path: test-reports
           destination: test-reports
