@@ -102,7 +102,6 @@ def test_deregister_class(mock_redis, mock_scheduler, client, dummy_jobs):
     assert mock_scheduler.cancel.call_count == 0
     assert mock_redis.delete.call_count == 0
 
-'''
 # The order of these tests is important. test_update_course must come before
 # test_similar_posts
 def test_update_course(client, Post, Course):
@@ -170,4 +169,3 @@ def test_similar_posts(client, Post, Course, dummy_db):
     resp = client.post(endpoint, data=json.dumps(payload),
                        content_type='application/json')
     assert resp.status_code == 400
-'''
