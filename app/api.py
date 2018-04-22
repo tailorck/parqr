@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from hashlib import md5
 import logging
+import pdb
 
 from flask import jsonify, make_response, request
 from flask_jsonschema import JsonSchema, ValidationError
@@ -146,7 +147,7 @@ def register_class():
                                        func=train_models,
                                        kwargs={"course_id": cid}, interval=900)
         redis.set(cid, ','.join([parse_job.id, train_job.id]))
-        return jsonify({'course_id': cid}), 202
+        return jsonify({'course_id': cid}), 200
     else:
         raise InvalidUsage('Course ID already exists', 500)
 
@@ -158,12 +159,12 @@ def deregister_class():
     cid = request.json['course_id']
     if redis.exists(cid):
         logger.info('Deregistering course: {}'.format(cid))
-        job_id_strs = redis.get(cid)
-        jobs = filter(lambda job: str(job.id) in job_id_strs,
-                      [j for j in scheduler.get_jobs()])
+        job_id_str = redis.get(cid)
+        jobs = filter(lambda job: job.id in job_id_str,
+                      scheduler.get_jobs())
         for job in jobs:
             scheduler.cancel(job)
         redis.delete(cid)
-        return jsonify({'course_id': cid}), 202
+        return jsonify({'course_id': cid}), 200
     else:
         raise InvalidUsage('Course ID does not exists', 500)

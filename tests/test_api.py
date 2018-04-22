@@ -1,15 +1,10 @@
+from collections import namedtuple
 import time
 import json
 import os
 
+from mock import patch, call
 import pytest
-
-
-@pytest.fixture
-def client():
-    from app import api
-    client = api.app.test_client()
-    return client
 
 
 @pytest.fixture
@@ -33,10 +28,79 @@ def dummy_db(client):
                 content_type='application/json')
     time.sleep(3)
 
+@pytest.fixture
+def dummy_jobs():
+    Job = namedtuple('Job', ['id'])
+    return [Job('job_id1'), Job('job_id2')]
+
 
 def test_hello_world(client):
     resp = client.get('/')
     assert resp.data == 'Hello, World!'
+
+
+@patch('app.api.scheduler')
+@patch('app.api.redis')
+def test_register_class(mock_redis, mock_scheduler, client, dummy_jobs):
+    endpoint = '/api/class'
+    course_id = 'j8rf9vx65vl23t'
+    payload = dict(course_id=course_id)
+
+    # case 1: cid does not exist, register cid
+    mock_redis.exists.return_value = False
+    mock_scheduler.schedule.side_effect = dummy_jobs
+    resp = client.post(endpoint, data=json.dumps(payload),
+                       content_type='application/json')
+    json_resp = json.loads(resp.data)
+    mock_redis.set.assert_called_with(course_id,
+                                      ','.join([job.id for job in dummy_jobs]))
+    assert resp.status_code == 200
+    assert json_resp['course_id'] == course_id
+    assert mock_scheduler.schedule.call_count == 2
+
+    # case 2: cid exists, do not register cid
+    mock_redis.reset_mock()
+    mock_scheduler.reset_mock()
+    mock_redis.exists.return_value = True
+    resp = client.post(endpoint, data=json.dumps(payload),
+                       content_type='application/json')
+    json_resp = json.loads(resp.data)
+    assert resp.status_code == 500
+    assert mock_scheduler.schedule.call_count == 0
+
+
+@patch('app.api.scheduler')
+@patch('app.api.redis')
+def test_deregister_class(mock_redis, mock_scheduler, client, dummy_jobs):
+    endpoint = '/api/class'
+    course_id = 'j8rf9vx65vl23t'
+    payload = dict(course_id=course_id)
+
+    # case 1: cid exists, deregister cid
+    mock_redis.exists.return_value = True
+    mock_redis.get.return_value = ','.join([job.id for job in dummy_jobs])
+    mock_scheduler.get_jobs.return_value = dummy_jobs
+
+    resp = client.delete(endpoint, data=json.dumps(payload),
+                         content_type='application/json')
+    json_resp = json.loads(resp.data)
+
+    calls = [call(job) for job in dummy_jobs]
+    mock_redis.get.assert_called_with(course_id)
+    mock_scheduler.cancel.assert_has_calls(calls)
+    mock_redis.delete.assert_called_with(course_id)
+    assert resp.status_code == 200
+
+    # case 2: cid does not exist, catch exception
+    mock_redis.reset_mock()
+    mock_scheduler.reset_mock()
+    mock_redis.exists.return_value = False
+    resp = client.delete(endpoint, data=json.dumps(payload),
+                       content_type='application/json')
+    json_resp = json.loads(resp.data)
+    assert resp.status_code == 500
+    assert mock_scheduler.cancel.call_count == 0
+    assert mock_redis.delete.call_count == 0
 
 
 # The order of these tests is important. test_update_course must come before
