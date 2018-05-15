@@ -20,8 +20,9 @@ def clean(string):
     cleaned_string : str
         The cleaned version of input string
     """
-    only_letters = re.sub('[^a-zA-Z]', ' ', string)
-    cleaned_string = only_letters.lower().strip()
+    only_letters = re.sub('[^a-zA-Z ]', '', string)
+    no_mult_spaces = re.sub(' +', ' ', only_letters)
+    cleaned_string = no_mult_spaces.lower().strip()
     return cleaned_string
 
 
