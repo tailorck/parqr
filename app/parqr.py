@@ -7,7 +7,11 @@ import pandas as pd
 
 from models import Post
 from utils import clean, ModelCache
-from constants import TFIDF_MODELS, SCORE_THRESHOLD
+from constants import (
+    TFIDF_MODELS,
+    SCORE_THRESHOLD,
+    COURSE_MODEL_RELOAD_DELAY_S
+)
 
 logger = logging.getLogger('app')
 
@@ -55,7 +59,7 @@ class Parqr(object):
     def __init__(self):
         """Initializes private caching dictionaries."""
         self._course_dict = {}
-        self._model_cache = ModelCache('app/resources')
+        self._model_cache = ModelCache()
 
     def get_recommendations(self, cid, query, N):
         """Get the N most similar posts to provided query.
@@ -130,7 +134,7 @@ class Parqr(object):
         all_pids = self._get_all_pids(cid)
         tfidf_scores = pd.DataFrame(index=all_pids)
         now = datetime.now()
-        delay = timedelta(minutes=30)
+        delay = timedelta(seconds=COURSE_MODEL_RELOAD_DELAY_S)
 
         # If the models for a course are not loaded into memory or it has been
         # some time since they were loaded last, reload them.
@@ -187,10 +191,10 @@ class Parqr(object):
         """
         logger.info("Loading all models for cid: {}".format(cid))
 
-        if cid not in self._course_dict:
-            course_info = CourseInfo(cid)
-        else:
+        if cid in self._course_dict:
             course_info = self._course_dict[cid]
+        else:
+            course_info = CourseInfo(cid)
 
         for model_name in TFIDF_MODELS:
             skmodel, matrix, pid_list = self._model_cache.get_all(cid, model_name)
@@ -198,7 +202,9 @@ class Parqr(object):
                                                        matrix, pid_list)
 
         course_info.last_load = datetime.now()
-        self._course_dict[cid] = course_info
+
+        if cid not in self._course_dict:
+            self._course_dict[cid] = course_info
 
     def _get_all_pids(self, cid):
         """Retrives the valid post_ids for a particular course.

@@ -14,6 +14,8 @@ from utils import clean_and_split, stringify_followups, ModelCache
 
 warnings.filterwarnings("ignore")
 
+logger = logging.getLogger('app')
+
 
 class ModelTrain(object):
 
@@ -26,9 +28,7 @@ class ModelTrain(object):
         # TODO: remove hard coded resources path.
         # Requires getting setup.py working and then use pkg_resources
         self.verbose = verbose
-        self.model_cache = ModelCache('app/resources')
-        self.logger = logging.getLogger('app')
-        self._threads = {}
+        self.model_cache = ModelCache()
 
     def persist_all_models(self):
         """Creates new models for each course in database and persists each to
@@ -36,21 +36,7 @@ class ModelTrain(object):
         for course in Course.objects():
             self.persist_model(course.course_id)
 
-    def persist_model(self, cid):
-        """Creates new models for course with given cid
-
-        Args:
-            cid (str): The course id of interest
-        """
-        if cid in self._threads and self._threads[cid].is_alive():
-            raise InvalidUsage('Background thread is running', 500)
-
-        # TODO: Remove threaded operations after conversion to docker
-        # deployment
-        self._threads[cid] = Thread(target=self._persist_model, args=(cid,))
-        self._threads[cid].start()
-
-    def _persist_model(self, cid):
+    def persist_models(self, cid):
         """Vectorizes the information in database into multiple TF-IDF models.
         The models are persisted by pickling the TF-IDF sklearn models,
         storing the sparse vector matrix as a npz file, and saving the
@@ -60,7 +46,7 @@ class ModelTrain(object):
             cid: The course id of the class to vectorize
         """
         # TODO: Catch invalid cid
-        self.logger.info('Vectorizing words from course: {}'.format(cid))
+        logger.info('Vectorizing words from course: {}'.format(cid))
 
         pool = Pool(4)
         partial_func = partial(self._create_tfidf_model, cid)
@@ -123,19 +109,19 @@ class ModelTrain(object):
                 clean_body = clean_and_split(post.body)
                 tags = post.tags
                 words.append(' '.join(clean_subject + clean_body + tags))
-                model_pid_list.append(post.pid)
+                model_pid_list.append(post.post_id)
             elif model_name == TFIDF_MODELS.I_ANSWER:
                 if post.i_answer:
                     words.append(' '.join(clean_and_split(post.i_answer)))
-                    model_pid_list.append(post.pid)
+                    model_pid_list.append(post.post_id)
             elif model_name == TFIDF_MODELS.S_ANSWER:
                 if post.s_answer:
                     words.append(' '.join(clean_and_split(post.s_answer)))
-                    model_pid_list.append(post.pid)
+                    model_pid_list.append(post.post_id)
             elif model_name == TFIDF_MODELS.FOLLOWUP:
                 if post.followups:
                     followup_str = stringify_followups(post.followups)
                     words.append(' '.join(clean_and_split(followup_str)))
-                    model_pid_list.append(post.pid)
+                    model_pid_list.append(post.post_id)
 
         return np.array(words), np.array(model_pid_list)

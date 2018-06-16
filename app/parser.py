@@ -11,6 +11,8 @@ from exception import InvalidUsage
 from models import Course, Post
 from utils import read_credentials, stringify_followups
 
+logger = logging.getLogger('app')
+
 
 class Parser(object):
 
@@ -19,8 +21,6 @@ class Parser(object):
         and password
         """
         self._piazza = Piazza()
-        self._threads = {}
-        self._logger = logging.getLogger('app')
 
         self._login()
 
@@ -34,28 +34,8 @@ class Parser(object):
         course_id : str
             The course id of the class to be updated
         """
-        if course_id in self._threads and self._threads[course_id].is_alive():
-            raise InvalidUsage('Background thread is running', 500)
-
+        logger.info("Parsing posts for course: {}".format(course_id))
         network = self._piazza.network(course_id)
-
-        # TODO: Remove threaded operations after converting to docker container
-        # deployments
-        self._threads[course_id] = Thread(target=self._update_posts,
-                                          args=(course_id, network,))
-
-        self._threads[course_id].start()
-
-    def _update_posts(self, course_id, network):
-        """Retrieves all new posts in course that are not already in database
-        and updates old posts that have been modified
-        Parameters
-        ----------
-        course_id : str
-            The course id of the class to be updated
-        network : piazza_api.network
-            A handle to the network object for the course
-        """
         stats = network.get_statistics()
         total_questions = stats['total']['questions']
         pbar = ProgressBar(maxval=total_questions)
@@ -106,8 +86,8 @@ class Parser(object):
 
         end_time = time.time()
         time_elapsed = end_time - start_time
-        self._logger.info('Course updated. {} posts scraped in: '
-                          '{:.2f}s'.format(total_questions, time_elapsed))
+        logger.info('Course updated. {} posts scraped in: '
+                    '{:.2f}s'.format(total_questions, time_elapsed))
 
     def _check_for_updates(self, curr_post, new_fields):
         """Checks if post has been updated since last scrape.
@@ -235,12 +215,12 @@ class Parser(object):
             email, password = read_credentials()
             self._piazza.user_login(email, password)
         except IOError:
-            self._logger.error("File not found. Use encrypt_login.py to "
-                               "create encrypted password store")
+            logger.error("File not found. Use encrypt_login.py to "
+                         "create encrypted password store")
             self._login_with_input()
         except UnicodeDecodeError, AuthenticationError:
-            self._logger.error("Incorrect Email/Password found in "
-                               "encrypted file store")
+            logger.error("Incorrect Email/Password found in "
+                         "encrypted file store")
             self._login_with_input()
 
     def _login_with_input(self):
@@ -250,5 +230,5 @@ class Parser(object):
                 self._piazza.user_login()
                 break
             except AuthenticationError:
-                self._logger.error('Invalid Username/Password')
+                logger.error('Invalid Username/Password')
                 continue

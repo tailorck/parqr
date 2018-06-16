@@ -9,7 +9,7 @@ def test_correct_env():
     assert os.environ['FLASK_CONF'] == 'testing'
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')
 def client():
     from app import api
     client = api.app.test_client()
