@@ -1,4 +1,3 @@
-from threading import Thread
 import time
 import logging
 
@@ -7,7 +6,6 @@ from piazza_api import Piazza
 from piazza_api.exceptions import AuthenticationError, RequestError
 from progressbar import ProgressBar
 
-from exception import InvalidUsage
 from models import Course, Post
 from utils import read_credentials, stringify_followups
 

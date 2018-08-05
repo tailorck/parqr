@@ -34,6 +34,9 @@ def create_app(config_name):
     # Override some parameters of rq_dashboard config with app.config
     app.config.from_object(config_dict[config_name])
 
+    if not os.path.isdir(app.config['LOG_FOLDER']):
+        os.mkdirs(app.config['LOG_FOLDER'])
+
     log_file = os.path.join(app.config['LOG_FOLDER'], 'app.log')
     log_level = app.config['LOG_LEVEL']
     fh = RotatingFileHandler(log_file, maxBytes=100*1024*1024, backupCount=5)

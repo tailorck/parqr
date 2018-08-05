@@ -1,28 +1,24 @@
 from datetime import datetime, timedelta
-from hashlib import md5
 import logging
 
 from flask import jsonify, make_response, request
 from flask_jsonschema import JsonSchema, ValidationError
 from redis import Redis
-from rq import Queue
 from rq_scheduler import Scheduler
-import pandas as pd
 
 from app import app
-from app.parser import Parser
-from app.modeltrain import ModelTrain
 from app.models import Course, Event, EventData
-from app.constants import COURSE_PARSE_TRAIN_INTERVAL_S
-from tasksrq import parse_and_train_models
-from exception import InvalidUsage, to_dict
-from parqr import Parqr
+from app.constants import (
+    COURSE_PARSE_TRAIN_TIMEOUT_S,
+    COURSE_PARSE_TRAIN_INTERVAL_S
+)
+from app.tasksrq import parse_and_train_models
+from app.exception import InvalidUsage, to_dict
+from app.parqr import Parqr
 
 api_endpoint = '/api/'
 
 parqr = Parqr()
-parser = Parser()
-model_train = ModelTrain()
 jsonschema = JsonSchema(app)
 
 logger = logging.getLogger('app')
@@ -30,7 +26,6 @@ logger = logging.getLogger('app')
 redis_host = app.config['REDIS_HOST']
 redis_port = app.config['REDIS_PORT']
 redis = Redis(host=redis_host, port=redis_port, db=0)
-queue = Queue(connection=redis)
 scheduler = Scheduler(connection=redis)
 
 logger.info('Ready to serve requests')
@@ -82,7 +77,7 @@ def register_event():
 
     event.save()
     logger.info('Recorded {} event from cid {}'
-                .format(data['type'], data['cid']))
+                .format(event.event_type, event.event_data.course_id))
 
     return jsonify({'message': 'success'}), 200
 
@@ -116,7 +111,8 @@ def register_class():
         new_course_job = scheduler.schedule(scheduled_time=datetime.now(),
                                             func=parse_and_train_models,
                                             kwargs={"course_id": cid},
-                                            interval=COURSE_PARSE_TRAIN_INTERVAL_S)
+                                            interval=COURSE_PARSE_TRAIN_INTERVAL_S,
+                                            timeout=COURSE_PARSE_TRAIN_TIMEOUT_S)
         redis.set(cid, new_course_job.id)
         return jsonify({'course_id': cid}), 202
     else:
