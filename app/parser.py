@@ -39,6 +39,8 @@ class Parser(object):
         pbar = ProgressBar(maxval=total_questions)
 
         # Get handle to the corresponding course document or create a new one
+        print "Abhishek Says - We reach here"
+        print "Course ID is - ", course_id
         course = Course.objects(course_id=course_id)
         if not course:
             course = Course(course_id).save()
@@ -55,8 +57,18 @@ class Parser(object):
             if post['status'] == 'deleted' or post['status'] == 'private':
                 continue
 
+            # To Do - Parse the type of the post, to indicate if the post is
+            # a note/announcement
+
             # Extract the subject, body, and tags from post
             subject, body, tags = self._extract_question_details(post)
+
+            # Extract number of unique views of the post
+            num_views = post['unique_views']
+            print("For post, num views = ", num_views)
+
+            # Extract number of unresolved followups (if any)
+            num_unresolved_followups = self._extract_num_unresolved(post)
 
             # Extract the student and instructor answers if applicable
             s_answer, i_answer = self._extract_answers(post)
@@ -70,16 +82,21 @@ class Parser(object):
                 db_post = Post.objects.get(course_id=course_id, post_id=pid)
                 new_fields = dict(subject=subject, body=body,
                                   s_answer=s_answer, i_answer=i_answer,
-                                  followups=followups)
+                                  followups=followups,
+                                  num_unresolved_followups = num_unresolved_followups,
+                                  num_views = num_views)
                 is_updated = self._check_for_updates(db_post, new_fields)
 
                 if is_updated is True:
                     db_post.update(subject=subject, body=body,
                                    s_answer=s_answer, i_answer=i_answer,
-                                   followups=followups)
+                                   followups=followups,
+                                   num_unresolved_followups=num_unresolved_followups,
+                                   num_views=num_views)
             else:
                 mongo_post = Post(course_id, pid, subject, body, tags,
-                                  s_answer, i_answer, followups).save()
+                                  s_answer, i_answer, followups, num_views,
+                                  num_unresolved_followups).save()
                 course.update(add_to_set__posts=mongo_post)
 
         end_time = time.time()
@@ -115,8 +132,23 @@ class Parser(object):
             return True
         elif curr_followups_str != new_followups_str:
             return True
+        elif curr_post.num_views != new_fields['num_views']:
+            return True
+        elif curr_post.num_unresolved_followups != new_fields['num_unresolved_followups']:
+            return True
 
         return False
+
+    def _extract_num_unresolved(self, post):
+        if len(post['children']) > 0:
+            print("There are some unresolved followups")
+            unresolved_list = [post['children'][i]['no_answer']
+                               for i in range(len(post['children']))
+                               if post['children'][i]['type'] == 'followup']
+            print(sum(unresolved_list))
+            return sum(unresolved_list)
+        else:
+            return 0
 
     def _extract_question_details(self, post):
         """Retrieves information pertaining to the question in the piazza post

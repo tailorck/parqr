@@ -18,6 +18,8 @@ class Post(db.Document):
     s_answer = db.StringField()
     i_answer = db.StringField()
     followups = db.ListField(db.EmbeddedDocumentField(Followup))
+    num_views = db.IntField(required=True)
+    num_unresolved_followups = db.IntField(required=True)
 
     def pprint(self):
         def _format_long_string(string):

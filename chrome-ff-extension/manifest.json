@@ -9,7 +9,7 @@
     },
     "permissions": [
         "activeTab",
-        "http://*.amazonaws.com/*",
+        "http://localhost:8000/",
         "http://*.piazza.com/*",
         "cookies"
     ],
