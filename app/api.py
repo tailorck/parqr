@@ -29,7 +29,6 @@ redis = Redis(host=redis_host, port=redis_port, db=0)
 scheduler = Scheduler(connection=redis)
 
 logger.info('Ready to serve requests')
-logger.info('Abhishek Says - This is newest parqr code.')
 
 
 @app.errorhandler(404)
@@ -78,7 +77,7 @@ def register_event():
 
     event.save()
     logger.info('Recorded {} event from cid {}'
-                .format(event.event_type, event.event_data.course_id))
+                .format(event.event_name, event.event_data.course_id))
 
     return jsonify({'message': 'success'}), 200
 

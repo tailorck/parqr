@@ -14,8 +14,7 @@ try {
 }
 
 browser.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-    //var host = "http://ec2-54-198-200-115.compute-1.amazonaws.com/"
-    var host = "http://localhost:8000/"
+    var host = "http://ec2-54-198-200-115.compute-1.amazonaws.com/"
 
     if (request["type"] == "query"){
         get_similar_posts(host, request, sender, sendResponse)

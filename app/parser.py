@@ -39,8 +39,6 @@ class Parser(object):
         pbar = ProgressBar(maxval=total_questions)
 
         # Get handle to the corresponding course document or create a new one
-        print "Abhishek Says - We reach here"
-        print "Course ID is - ", course_id
         course = Course.objects(course_id=course_id)
         if not course:
             course = Course(course_id).save()
@@ -57,7 +55,7 @@ class Parser(object):
             if post['status'] == 'deleted' or post['status'] == 'private':
                 continue
 
-            # To Do - Parse the type of the post, to indicate if the post is
+            # TODO: Parse the type of the post, to indicate if the post is
             # a note/announcement
 
             # Extract the subject, body, and tags from post
@@ -65,7 +63,6 @@ class Parser(object):
 
             # Extract number of unique views of the post
             num_views = post['unique_views']
-            print("For post, num views = ", num_views)
 
             # Extract number of unresolved followups (if any)
             num_unresolved_followups = self._extract_num_unresolved(post)
@@ -83,8 +80,8 @@ class Parser(object):
                 new_fields = dict(subject=subject, body=body,
                                   s_answer=s_answer, i_answer=i_answer,
                                   followups=followups,
-                                  num_unresolved_followups = num_unresolved_followups,
-                                  num_views = num_views)
+                                  num_unresolved_followups=num_unresolved_followups,
+                                  num_views=num_views)
                 is_updated = self._check_for_updates(db_post, new_fields)
 
                 if is_updated is True:
@@ -141,11 +138,9 @@ class Parser(object):
 
     def _extract_num_unresolved(self, post):
         if len(post['children']) > 0:
-            print("There are some unresolved followups")
             unresolved_list = [post['children'][i]['no_answer']
                                for i in range(len(post['children']))
                                if post['children'][i]['type'] == 'followup']
-            print(sum(unresolved_list))
             return sum(unresolved_list)
         else:
             return 0
