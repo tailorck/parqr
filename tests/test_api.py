@@ -1,7 +1,6 @@
 from collections import namedtuple
 import time
 import json
-import os
 
 from mock import patch, call
 import pytest
@@ -32,6 +31,81 @@ def dummy_db(client):
 def dummy_jobs():
     Job = namedtuple('Job', ['id'])
     return [Job('job_id1'), Job('job_id2')]
+
+
+@patch('app.api.get_unique_users')
+@patch('app.api.number_posts_prevented')
+@patch('app.api.total_posts_in_course')
+@pytest.mark.skip(reason='Need to mock out database and queue interactions')
+def test_get_parqr_stats(mock_total_posts, mock_prevented_posts,
+                         mock_unique_users, client):
+    course_id = 'j8rf9vx65vl23t'
+    start_time = 1524417360
+    endpoint = '/api/class/{cid}/usage?start_time={time}'.format(cid=course_id,
+                                                                 time=start_time)
+
+    mock_unique_users.return_value = 50
+    mock_prevented_posts.return_value = 20
+    mock_total_posts.return_value = 600
+    resp = client.get(endpoint)
+    json_resp = json.loads(resp.data)
+
+    mock_unique_users.assert_called_with(course_id, start_time)
+    mock_prevented_posts.assert_called_with(course_id, start_time)
+    mock_total_posts.assert_called_with(course_id, start_time)
+
+    assert resp.status_code == 202
+    assert json_resp['usingParqr'] == 50
+    assert json_resp['assistedCount'] == 20
+    assert json_resp['percentTrafficReduced'] == (20 / float(600 + 20)) * 100
+
+
+@patch('app.api.get_top_attention_warranted_posts')
+@pytest.mark.skip(reason='Need to mock out database and queue interactions')
+def test_get_top_posts(mock_top_posts, client):
+    course_id = 'j8rf9vx65vl23t'
+    num_posts = 10
+    endpoint = '/api/class/{cid}/attentionposts?num_posts={num_posts}'.format(cid=course_id,
+                                                            num_posts=num_posts)
+
+    post_properties = [ '5 unresolved followups', '120 views',
+                        '3 good questions', 'No instructor answer']
+    result = [
+        {
+            "pid"       :  295,
+            "title"     :  "Help with Minimax",
+            "properties":  post_properties
+        },
+
+        {
+            "pid"       : 300,
+            "title"     : "Markov Decision Processes Challenge",
+            "properties": post_properties
+        }
+    ]
+
+    mock_top_posts.return_value = result
+    resp = client.get(endpoint)
+    json_resp = json.loads(resp.data)
+    mock_top_posts.assert_called_with(course_id, num_posts)
+
+    assert resp.status_code == 202
+    assert json_resp['posts'] == result
+
+
+@patch('app.api.is_course_id_valid')
+@pytest.mark.skip(reason='Need to mock out database and queue interactions')
+def test_get_course_isvalid(mock_is_valid_cid, client):
+    course_id = 'j8rf9vx65vl23t'
+    endpoint = '/api/class/isvalid?course_id={cid}'.format(cid=course_id)
+
+    mock_is_valid_cid.return_value = False
+    resp = client.get(endpoint)
+    json_resp = json.loads(resp.data)
+    mock_is_valid_cid.assert_called_with(course_id)
+
+    assert resp.status_code == 202
+    assert json_resp['valid'] == False
 
 
 @patch('app.api.scheduler')
