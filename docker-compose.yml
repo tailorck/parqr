@@ -16,7 +16,7 @@ services:
             - '27017:27017'
 
     app:
-        command: gunicorn --bind=0.0.0.0 app.api:app
+        command: gunicorn -t 90 --bind=0.0.0.0 app.api:app
         environment:
             - FLASK_CONF=production
         build:
