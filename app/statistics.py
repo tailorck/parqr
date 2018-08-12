@@ -325,9 +325,7 @@ def total_posts_in_course(course_id):
     return Post.objects(course_id=course_id).count()
 
 
-def _create_top_posts(posts_df,
-                      has_instructor_answer,
-                      has_student_answer,
+def _create_top_posts(posts_df, has_instructor_answer, has_student_answer,
                       number_of_posts):
     # Reset index of the dataframe passed. This will help in
     # iterating over its indexes
@@ -386,8 +384,7 @@ def _create_top_posts(posts_df,
     return top_n_posts
 
 
-def get_top_attention_warranted_posts(course_id,
-                                      number_of_posts):
+def get_top_attention_warranted_posts(course_id, number_of_posts):
     """Retrieves the top posts for a specific tag, for a specific course,
     with the search time being [starting_time, now). The following are the
     factors used in determining if a post warrants attention or not:

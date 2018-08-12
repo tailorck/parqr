@@ -9,11 +9,11 @@ from rq_scheduler import Scheduler
 from app import app
 from app.models import Course, Event, EventData
 from app.statistics import (
-  get_unique_users,
-  number_posts_prevented,
-  total_posts_in_course,
-  get_top_attention_warranted_posts,
-  is_course_id_valid
+    get_unique_users,
+    number_posts_prevented,
+    total_posts_in_course,
+    get_top_attention_warranted_posts,
+    is_course_id_valid
 )
 from app.constants import (
     COURSE_PARSE_TRAIN_TIMEOUT_S,
@@ -123,7 +123,7 @@ def register_class():
         redis.set(cid, new_course_job.id)
         return jsonify({'course_id': cid}), 202
     else:
-        raise InvalidUsage('Course ID already exists', 500)
+        raise InvalidUsage('Course ID already exists', 400)
 
 
 @app.route(api_endpoint + 'class', methods=['DELETE'])
@@ -138,15 +138,15 @@ def deregister_class():
         redis.delete(cid)
         return jsonify({'course_id': cid}), 200
     else:
-        raise InvalidUsage('Course ID does not exists', 500)
+        raise InvalidUsage('Course ID does not exists', 400)
 
 
 @app.route(api_endpoint + 'class/<course_id>/usage', methods=['GET'])
 def get_parqr_stats(course_id):
     try:
         start_time = int(request.args.get('start_time'))
-    except:
-        raise InvalidUsage('Invalid start time specified', 500)
+    except ValueError:
+        raise InvalidUsage('Invalid start time specified', 400)
     num_active_uid = get_unique_users(course_id, start_time)
     num_post_prevented = number_posts_prevented(course_id, start_time)
     num_total_posts = total_posts_in_course(course_id)
@@ -161,8 +161,8 @@ def get_parqr_stats(course_id):
 def get_top_posts(course_id):
     try:
         num_posts = int(request.args.get('num_posts'))
-    except:
-        raise InvalidUsage('Invalid number of posts specified', 500)
+    except ValueError:
+        raise InvalidUsage('Invalid number of posts specified', 400)
     posts = get_top_attention_warranted_posts(course_id, num_posts)
     return jsonify({'posts': posts}), 202
 
