@@ -6,8 +6,8 @@ from piazza_api import Piazza
 from piazza_api.exceptions import AuthenticationError, RequestError
 from progressbar import ProgressBar
 
-from models import Course, Post
-from utils import read_credentials, stringify_followups
+from app.models import Course, Post
+from app.utils import read_credentials, stringify_followups
 
 logger = logging.getLogger('app')
 
@@ -19,7 +19,6 @@ class Parser(object):
         and password
         """
         self._piazza = Piazza()
-
         self._login()
 
     def update_posts(self, course_id):
@@ -27,16 +26,29 @@ class Parser(object):
 
         Retrieves all new posts in course that are not already in database
         and updates old posts that have been modified
+
         Parameters
         ----------
         course_id : str
             The course id of the class to be updated
+
+
+        Returns
+        -------
+        success : boolean
+            True if course parsed without any errors. False, otherwise.
         """
         logger.info("Parsing posts for course: {}".format(course_id))
         network = self._piazza.network(course_id)
         stats = network.get_statistics()
-        total_questions = stats['total']['questions']
-        pbar = ProgressBar(maxval=total_questions)
+
+        try:
+            total_questions = stats['total']['questions']
+            pbar = ProgressBar(maxval=total_questions)
+        except KeyError:
+            logger.error('Unable to get valid statistics for course_id: {}'
+                         .format(course_id))
+            return False
 
         # Get handle to the corresponding course document or create a new one
         course = Course.objects(course_id=course_id)
@@ -96,10 +108,23 @@ class Parser(object):
                                   num_unresolved_followups).save()
                 course.update(add_to_set__posts=mongo_post)
 
+        # TODO: Figure out another way to verify whether the current user has
+        # access to a class.
+        # In the event the course_id was invalid or no posts were parsed,
+        # delete course object
+        if Post.objects(course_id=course_id).count() == 0:
+            logger.error('Unable to parse posts for course: {}. Please '
+                         'confirm that the piazza user has access to this '
+                         'course'.format(course_id))
+            Course.objects(course_id=course_id).delete()
+            return False
+
         end_time = time.time()
         time_elapsed = end_time - start_time
         logger.info('Course updated. {} posts scraped in: '
                     '{:.2f}s'.format(total_questions, time_elapsed))
+
+        return True
 
     def _check_for_updates(self, curr_post, new_fields):
         """Checks if post has been updated since last scrape.
