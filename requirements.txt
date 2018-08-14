@@ -1,3 +1,4 @@
+six==1.10.0
 Flask==0.12.2
 Flask_JsonSchema==0.1.1
 bs4==0.0.1
@@ -22,3 +23,4 @@ rq_scheduler==0.7.0
 scipy==1.0.0
 sklearn==0.0
 delorean==1.0.0
+Crypto==1.4.1
