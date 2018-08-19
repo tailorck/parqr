@@ -35,7 +35,7 @@ def create_app(config_name):
     app.config.from_object(config_dict[config_name])
 
     if not os.path.isdir(app.config['LOG_FOLDER']):
-        os.mkdirs(app.config['LOG_FOLDER'])
+        os.makedirs(app.config['LOG_FOLDER'])
 
     log_file = os.path.join(app.config['LOG_FOLDER'], 'app.log')
     log_level = app.config['LOG_LEVEL']

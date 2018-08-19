@@ -9,6 +9,7 @@ class Config(object):
     TESTING = False
     LOG_FOLDER = join(file_dir, '..', 'logs')
     JSONSCHEMA_DIR = join(file_dir, 'schemas')
+    SECRET_KEY = 'secretsauce'
 
 
 class ProductionConfig(Config):

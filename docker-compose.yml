@@ -14,9 +14,11 @@ services:
             - queue
         ports:
             - '27017:27017'
+        volumes:
+            - /data/db/:/data/db
 
     app:
-        command: gunicorn -t 90 --bind=0.0.0.0 app.api:app
+        command: gunicorn -t 90 --bind=0.0.0.0 app.api:app --workers=8
         environment:
             - FLASK_CONF=production
         build:
