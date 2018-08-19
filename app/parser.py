@@ -21,6 +21,11 @@ class Parser(object):
         self._piazza = Piazza()
         self._login()
 
+    def get_enrolled_courses(self):
+        enrolled_courses = self._piazza.get_user_classes()
+        return [{'name': d['name'], 'cid': d['nid'], 'num': d['num']}
+                for d in enrolled_courses]
+
     def update_posts(self, course_id):
         """Creates a thread task to update all posts in a course
 

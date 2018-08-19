@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta
 from os.path import dirname, abspath, join
 
 file_dir = dirname(abspath(__file__))
@@ -10,6 +11,7 @@ class Config(object):
     LOG_FOLDER = join(file_dir, '..', 'logs')
     JSONSCHEMA_DIR = join(file_dir, 'schemas')
     SECRET_KEY = 'secretsauce'
+    JWT_EXPIRATION_DELTA = timedelta(seconds=1800)
 
 
 class ProductionConfig(Config):
