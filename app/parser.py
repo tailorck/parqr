@@ -76,7 +76,7 @@ class Parser(object):
             # a note/announcement
 
             # Extract the subject, body, and tags from post
-            subject, body, tags = self._extract_question_details(post)
+            subject, body, tags, post_type = self._extract_question_details(post)
 
             # Extract number of unique views of the post
             num_views = post['unique_views']
@@ -94,9 +94,9 @@ class Parser(object):
             # necessary. Else, insert new post and add to course's post list
             if Post.objects(course_id=course_id, post_id=pid):
                 db_post = Post.objects.get(course_id=course_id, post_id=pid)
-                new_fields = dict(subject=subject, body=body,
-                                  s_answer=s_answer, i_answer=i_answer,
-                                  followups=followups,
+                new_fields = dict(subject=subject, body=body, tags=tags,
+                                  post_type=post_type, s_answer=s_answer,
+                                  i_answer=i_answer, followups=followups,
                                   num_unresolved_followups=num_unresolved_followups,
                                   num_views=num_views)
                 is_updated = self._check_for_updates(db_post, new_fields)
@@ -109,8 +109,8 @@ class Parser(object):
                                    num_views=num_views)
             else:
                 mongo_post = Post(course_id, pid, subject, body, tags,
-                                  s_answer, i_answer, followups, num_views,
-                                  num_unresolved_followups).save()
+                                  post_type, s_answer, i_answer, followups,
+                                  num_views, num_unresolved_followups).save()
                 course.update(add_to_set__posts=mongo_post)
 
         # TODO: Figure out another way to verify whether the current user has
@@ -149,22 +149,18 @@ class Parser(object):
         curr_followups_str = stringify_followups(curr_post.followups)
         new_followups_str = stringify_followups(new_fields['followups'])
 
-        if curr_post.subject != new_fields['subject']:
-            return True
-        elif curr_post.body != new_fields['body']:
-            return True
-        elif curr_post.s_answer != new_fields['s_answer']:
-            return True
-        elif curr_post.i_answer != new_fields['i_answer']:
-            return True
-        elif curr_followups_str != new_followups_str:
-            return True
-        elif curr_post.num_views != new_fields['num_views']:
-            return True
-        elif curr_post.num_unresolved_followups != new_fields['num_unresolved_followups']:
-            return True
-
-        return False
+        checks = [
+            curr_post.subject != new_fields['subject'],
+            curr_post.body != new_fields['body'],
+            curr_post.s_answer != new_fields['s_answer'],
+            curr_post.i_answer != new_fields['i_answer'],
+            curr_followups_str != new_followups_str,
+            curr_post.num_views != new_fields['num_views'],
+            curr_post.num_unresolved_followups != new_fields['num_unresolved_followups'],
+            curr_post.tags != new_fields['tags'],
+            curr_post.post_type != new_fields['post_type'],
+        ]
+        return any(checks)
 
     def _extract_num_unresolved(self, post):
         if len(post['children']) > 0:
@@ -196,8 +192,9 @@ class Parser(object):
         subject = post['history'][0]['subject']
         html_body = post['history'][0]['content']
         parsed_body = BeautifulSoup(html_body, 'html.parser').get_text()
-        tags = post['folders']
-        return subject, parsed_body, tags
+        tags = post['tags']
+        post_type = post['type']
+        return subject, parsed_body, tags, post_type
 
     def _extract_answers(self, post):
         """Retrieves information pertaining to the answers of the piazza post
