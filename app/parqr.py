@@ -79,8 +79,6 @@ class Parqr(object):
             A sorted dict of the top N most similar posts with their similarity
             scores as the keys
         """
-        logger.info('Retrieving similar posts for query.')
-
         # clean query vector
         clean_query = clean(query)
 
