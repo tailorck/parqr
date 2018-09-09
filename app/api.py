@@ -153,7 +153,7 @@ def deregister_class():
 def get_parqr_stats(course_id):
     try:
         start_time = int(request.args.get('start_time'))
-    except ValueError:
+    except ValueError, TypeError:
         raise InvalidUsage('Invalid start time specified', 400)
     num_active_uid = get_unique_users(course_id, start_time)
     num_post_prevented = number_posts_prevented(course_id, start_time)
@@ -169,7 +169,7 @@ def get_parqr_stats(course_id):
 def get_top_posts(course_id):
     try:
         num_posts = int(request.args.get('num_posts'))
-    except ValueError:
+    except ValueError, TypeError:
         raise InvalidUsage('Invalid number of posts specified', 400)
     posts = get_top_attention_warranted_posts(course_id, num_posts)
     return jsonify({'posts': posts}), 202

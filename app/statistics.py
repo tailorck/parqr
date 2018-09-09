@@ -2,69 +2,15 @@ from datetime import datetime
 import time
 import logging
 
-from pymongo import MongoClient, DESCENDING
+from pymongo import MongoClient, DESCENDING, ASCENDING
 import pandas as pd
 import numpy as np
-import delorean
 
 from app.models import Course, Event, Post
 from app.exception import InvalidUsage
 
 
 logger = logging.getLogger('app')
-
-
-def convert_events_to_df():
-    """This function converts the db.event collection into a dataframe,
-    allowing faster calculations for the stats module
-
-    Sample events_df schema is as below
-
-    {
-        _id: bson.objectid.ObjectId,
-        event_data: dict(list(course_ids)),
-        event_name: unicode,
-        event_type: unicode,
-        time: pandas._libs.tslib.Timestamp,
-        user_id: unicode
-    )
-
-    Return
-    ------
-    events_df : Dataframe with four columns
-        An events dataframe which has all the information stored as part of
-        the 'event' collention in mongo database.
-
-    """
-
-    # Step 1.
-    # Make a connection to the Mongo Database using pymongo
-    connection = MongoClient()
-
-    # Step 2.
-    # Get the required database. To Do - If not hardcode 'parqr', then what ?
-    database = connection.parqr
-
-    # Step 3.
-    # Get the required collection. To Do - If not hardcode 'event', then what ?
-    collection = database.event
-
-    # Step 4.
-    # Convert the entire collection into pandas dataframe with column names as
-    # the mongo database
-    events_df = pd.DataFrame(list(collection.find()))
-
-    feature_list = ['course_id', 'time', 'event', 'user_id']
-    df = pd.DataFrame(0, index=np.arange(events_df.shape[0]), columns=feature_list)
-
-    for i in range(events_df.shape[0]):
-        df.loc[i, 'course_id'] = events_df.loc[i, 'event_data']['course_id']
-        time_since_epoch = delorean.Delorean(events_df.loc[i, 'time'], timezone="UTC").epoch
-        df.loc[i, 'time'] = time_since_epoch
-        df.loc[i, 'event'] = events_df.loc[i, 'event_name']
-        df.loc[i, 'user_id'] = events_df.loc[i, 'user_id']
-
-    return df
 
 
 def is_course_id_valid(course_id):
@@ -125,6 +71,24 @@ def get_unique_users(course_id, starting_time):
     return len(unique_users)
 
 
+def events_bqs_to_df(bqs):
+    """
+    Converts a mongo BaseQuerySet (the result of a filtered query) to a pandas
+    dataframe
+
+    :param bqs: BaseQuerySet to be converted
+    :type bqs: flask_mongoengine.BaseQuerySet
+
+    :return: dataframe whose rows are individual events
+    """
+    return pd.DataFrame.from_dict({
+        'course_id': [event.event_data.course_id for event in bqs],
+        'time': [event.time for event in bqs],
+        'event': [event.event_name for event in bqs],
+        'user_id': [event.user_id for event in bqs]
+        })
+
+
 def number_posts_prevented(course_id, starting_time):
     """Retrieves the exact number of new posts that parqr prevents.
        Without the actual knowledge of post_id at the time of writing a new post,
@@ -158,19 +122,13 @@ def number_posts_prevented(course_id, starting_time):
         raise InvalidUsage('Invalid start time provided')
 
     # Extract relevant information from mongoDB for the course_id
-    events_df = convert_events_to_df()
+    starting_datetime = datetime.fromtimestamp(1000 * starting_time)
+    events = Event.objects(event_data__course_id=course_id, 
+                            time__gt=starting_datetime)
+    # events.sort([('user_id', ASCENDING), ('time', ASCENDING)])
+    events = events.order_by('user_id', 'time')
 
-    # 1. Filter events_df based on course_id and starting time
-    # 2. Reset Indexes of the resulting dataframe
-    events_df_course_id = events_df.loc[(events_df['course_id'] == course_id) &
-                                        (events_df['time'] / 1000 > starting_time),
-                                        ['course_id', 'time', 'event', 'user_id']] \
-                                   .reset_index(drop=True)
-
-    # 1. Sort in ascending order by columns - user_id and time
-    events_df_course_id_sorted = events_df_course_id.sort_values(by=['user_id',
-                                                                     'time'],
-                                                                 ascending=[True, True]).reset_index(drop=True)
+    events_df_course_id_sorted = events_bqs_to_df(events)
 
     # There may be possible duplicate entries in the database with same events
     # being logged in a continuous format. This is not a logging issue, but arises
@@ -267,7 +225,8 @@ def get_top_attention_warranted_posts(course_id, number_of_posts):
     if not is_valid:
         raise InvalidUsage('Invalid course id provided')
 
-    posts = Post.objects(course_id=course_id, tags__nin='announcements')
+    posts = Post.objects(course_id=course_id, post_type='question',
+                         tags__nin=['instructor-question'])
 
     def _create_top_post(post):
         post_data = {}
@@ -304,7 +263,6 @@ def get_top_attention_warranted_posts(course_id, number_of_posts):
 
     # Otherwise, return the n top posts sorted by number of unresolved followup
     # questions and views
-    posts.sort([('num_unresolved_followups', DESCENDING),
-                ('num_views', DESCENDING)])
+    posts = posts.order_by('-num_unresolved_followups', '-num_views')
     n_posts = min(posts.count(), number_of_posts)
     return map(_create_top_post, posts[:n_posts])
