@@ -2,9 +2,7 @@ from datetime import datetime
 import time
 import logging
 
-from pymongo import MongoClient, DESCENDING, ASCENDING
 import pandas as pd
-import numpy as np
 
 from app.models import Course, Event, Post
 from app.exception import InvalidUsage
@@ -125,7 +123,6 @@ def number_posts_prevented(course_id, starting_time):
     starting_datetime = datetime.fromtimestamp(1000 * starting_time)
     events = Event.objects(event_data__course_id=course_id, 
                             time__gt=starting_datetime)
-    # events.sort([('user_id', ASCENDING), ('time', ASCENDING)])
     events = events.order_by('user_id', 'time')
 
     events_df_course_id_sorted = events_bqs_to_df(events)
