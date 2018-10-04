@@ -7,6 +7,7 @@ import numpy as np
 
 from app.exception import InvalidUsage
 from app.models import Course, Event, Post
+from app.constants import POST_AGE_SIGMOID_OFFSET
 
 
 logger = logging.getLogger('app')
@@ -331,8 +332,9 @@ def get_stud_att_needed_posts(course_id, num_posts):
 
     posts_df = _posts_bqs_to_df(posts)
     posts_df.created = posts_df.created.fillna(posts_df.created.min())
-    posts_df['norm_created'] = _sigmoid((datetime.now() -
-                                         posts_df.created).dt.days, 7, True)
+    posts_age = datetime.now() - posts_df.created
+    posts_df['norm_created'] = _sigmoid(posts_age.dt.days,
+                                        POST_AGE_SIGMOID_OFFSET, True)
     posts_df['norm_num_followups'] = _min_max_norm(posts_df.num_followups)
     posts_df['norm_num_views'] = _min_max_norm(posts_df.num_views)
     posts_df['importance'] = (posts_df.norm_created *

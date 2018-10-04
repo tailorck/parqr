@@ -8,6 +8,7 @@ COURSE_MODEL_RELOAD_DELAY_S = 3600  # seconds
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
+POST_AGE_SIGMOID_OFFSET = 7
 
 class TFIDF_MODELS(Enum):
     POST = 0

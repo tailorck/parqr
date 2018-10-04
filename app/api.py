@@ -171,7 +171,9 @@ def get_top_inst_posts(course_id):
     try:
         num_posts = int(request.args.get('num_posts'))
     except (ValueError, TypeError):
-        raise InvalidUsage('Invalid number of posts specified', 400)
+        raise InvalidUsage('Invalid number of posts specified. Please specify '
+                           'the number of posts you would like as a GET '
+                           'parameter `num_posts`.', 400)
     posts = get_inst_att_needed_posts(course_id, num_posts)
     return jsonify({'posts': posts}), 202
 
@@ -181,7 +183,9 @@ def get_top_stud_posts(course_id):
     try:
         num_posts = int(request.args.get('num_posts'))
     except (ValueError, TypeError):
-        raise InvalidUsage('Invalid number of posts specified', 400)
+        raise InvalidUsage('Invalid number of posts specified. Please specify '
+                           'the number of posts you would like as a GET '
+                           'parameter `num_posts`.', 400)
     posts = get_stud_att_needed_posts(course_id, num_posts)
     return jsonify({'posts': posts}), 202
 
