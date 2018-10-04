@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import logging
 
@@ -7,7 +7,7 @@ import numpy as np
 
 from app.exception import InvalidUsage
 from app.models import Course, Event, Post
-from app.constants import POST_AGE_SIGMOID_OFFSET
+from app.constants import POST_AGE_SIGMOID_OFFSET, POST_MAX_AGE_DAYS
 
 
 logger = logging.getLogger('app')
@@ -289,14 +289,16 @@ def get_stud_att_needed_posts(course_id, num_posts):
     top_posts : list
         A list of dictionary of posts
     """
-
+    now = datetime.now()
     # Sanity check to see if the course_id sent is valid course_id or not
     is_valid = is_course_id_valid(course_id)
     if not is_valid:
         raise InvalidUsage('Invalid course id provided')
 
+    max_age_date = now - timedelta(hours=POST_MAX_AGE_DAYS*24)
     posts = Post.objects(course_id=course_id, post_type='question',
-                         tags__nin=['instructor-question'])
+                         tags__nin=['instructor-question'],
+                         created__gt=max_age_date)
 
     def _create_top_post(post):
         post_data = {}
@@ -332,7 +334,7 @@ def get_stud_att_needed_posts(course_id, num_posts):
 
     posts_df = _posts_bqs_to_df(posts)
     posts_df.created = posts_df.created.fillna(posts_df.created.min())
-    posts_age = datetime.now() - posts_df.created
+    posts_age = now - posts_df.created
     posts_df['norm_created'] = _sigmoid(posts_age.dt.days,
                                         POST_AGE_SIGMOID_OFFSET, True)
     posts_df['norm_num_followups'] = _min_max_norm(posts_df.num_followups)
