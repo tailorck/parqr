@@ -3,9 +3,10 @@ import time
 import logging
 
 import pandas as pd
+import numpy as np
 
-from app.models import Course, Event, Post
 from app.exception import InvalidUsage
+from app.models import Course, Event, Post
 
 
 logger = logging.getLogger('app')
@@ -84,7 +85,7 @@ def events_bqs_to_df(bqs):
         'time': [event.time for event in bqs],
         'event': [event.event_name for event in bqs],
         'user_id': [event.user_id for event in bqs]
-        })
+    })
 
 
 def number_posts_prevented(course_id, starting_time):
@@ -121,8 +122,8 @@ def number_posts_prevented(course_id, starting_time):
 
     # Extract relevant information from mongoDB for the course_id
     starting_datetime = datetime.fromtimestamp(1000 * starting_time)
-    events = Event.objects(event_data__course_id=course_id, 
-                            time__gt=starting_datetime)
+    events = Event.objects(event_data__course_id=course_id,
+                           time__gt=starting_datetime)
     events = events.order_by('user_id', 'time')
 
     events_df_course_id_sorted = events_bqs_to_df(events)
@@ -133,8 +134,7 @@ def number_posts_prevented(course_id, starting_time):
     # 1. Squash duplicate events in the dataframe and keep only one instance of
     # each
     df_for_posts_prevented = events_df_course_id_sorted \
-        .loc[events_df_course_id_sorted['event'] != events_df_course_id_sorted
-        .shift()['event']]
+        .loc[events_df_course_id_sorted['event'] != events_df_course_id_sorted.shift()['event']]
 
     # 1. Filter df by 'newPost' event and create a new df
     # 2. Group by user_id to identify individual's activity on piazza
@@ -194,10 +194,11 @@ def total_posts_in_course(course_id):
     return Post.objects(course_id=course_id).count()
 
 
-def get_top_attention_warranted_posts(course_id, number_of_posts):
-    """Retrieves the top posts for a specific tag, for a specific course,
-    with the search time being [starting_time, now). The following are the
-    factors used in determining if a post warrants attention or not:
+def get_inst_att_needed_posts(course_id, number_of_posts):
+    """Retrieves the top instructor attention needed posts, for a specific
+    course, with the search time being [starting_time, now). The following are
+    the factors used in determining if a post warrants attention or not:
+
     1) There is no Instructor answer for it
     2) There is no student answer for it
     3) There are unanswered followup questions for the post
@@ -230,9 +231,9 @@ def get_top_attention_warranted_posts(course_id, number_of_posts):
         post_data["title"] = post.subject
         post_data["post_id"] = post.post_id
 
-        # properties includes [# unresolved followups, # views, 
+        # properties includes [# unresolved followups, # views,
         #                      has_instructor_answer, has_student_answer, tags]
-        properties = ["{} unresolved followups".format(post.num_unresolved_followups), 
+        properties = ["{} unresolved followups".format(post.num_unresolved_followups),
                       "{} views".format(post.num_views)]
 
         if not post.i_answer:
@@ -263,3 +264,82 @@ def get_top_attention_warranted_posts(course_id, number_of_posts):
     posts = posts.order_by('-num_unresolved_followups', '-num_views')
     n_posts = min(posts.count(), number_of_posts)
     return map(_create_top_post, posts[:n_posts])
+
+
+def get_stud_att_needed_posts(course_id, num_posts):
+    """Retrieves the top student attention needed posts, for a specific course,
+    with the search time being [starting_time, now). The posts from the past
+    three days are sorted in the following order:
+
+    1) Number of views
+    2) Number of followups
+
+    Finally, the top posts based on the age of the post are returned
+
+    Parameters
+    ----------
+    course_id : str
+        The course id of the class
+    num_posts : int
+        Number of posts that need to be returned
+
+    Return
+    ------
+    top_posts : list
+        A list of dictionary of posts
+    """
+
+    # Sanity check to see if the course_id sent is valid course_id or not
+    is_valid = is_course_id_valid(course_id)
+    if not is_valid:
+        raise InvalidUsage('Invalid course id provided')
+
+    posts = Post.objects(course_id=course_id, post_type='question',
+                         tags__nin=['instructor-question'])
+
+    def _create_top_post(post):
+        post_data = {}
+        post_data["title"] = post.subject
+        post_data["post_id"] = post.post_id
+
+        # properties includes [# unresolved followups, # views,
+        #                      has_instructor_answer, has_student_answer, tags]
+        properties = ["{} followups".format(len(post.followups)),
+                      "{} views".format(post.num_views)]
+
+        if post.tags:
+            properties.append("Tags - {}".format(", ".join(post.tags)))
+
+        post_data["properties"] = properties
+        return post_data
+
+    def _posts_bqs_to_df(bqs):
+        return pd.DataFrame.from_dict({
+            'post_id': [post.post_id for post in bqs],
+            'created': [post.created for post in bqs],
+            'num_followups': [len(post.followups) for post in bqs],
+            'num_views': [post.num_views for post in bqs]
+        })
+
+    def _sigmoid(x, lookback, y_axis_flip=False):
+        exponential = np.exp((-1)**y_axis_flip) * (x-lookback)
+        return exponential / (1 + exponential)
+
+    def _min_max_norm(x):
+        x = x + 1
+        return x / (x.max() - x.min())
+
+    posts_df = _posts_bqs_to_df(posts)
+    posts_df.created = posts_df.created.fillna(posts_df.created.min())
+    posts_df['norm_created'] = _sigmoid((datetime.now() -
+                                         posts_df.created).dt.days, 7, True)
+    posts_df['norm_num_followups'] = _min_max_norm(posts_df.num_followups)
+    posts_df['norm_num_views'] = _min_max_norm(posts_df.num_views)
+    posts_df['importance'] = (posts_df.norm_created *
+                              posts_df.norm_num_followups *
+                              posts_df.norm_num_views)
+
+    posts_df = posts_df.sort_values(by='importance', ascending=False)
+    filtered_posts = Post.objects(course_id=course_id,
+                                  post_id__in=posts_df.head(num_posts).post_id)
+    return map(_create_top_post, filtered_posts)

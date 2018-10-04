@@ -15,7 +15,7 @@ from app.statistics import (
     get_unique_users,
     number_posts_prevented,
     total_posts_in_course,
-    get_top_attention_warranted_posts,
+    get_inst_att_needed_posts,
     is_course_id_valid
 )
 from app.constants import (
@@ -171,7 +171,7 @@ def get_top_posts(course_id):
         num_posts = int(request.args.get('num_posts'))
     except ValueError, TypeError:
         raise InvalidUsage('Invalid number of posts specified', 400)
-    posts = get_top_attention_warranted_posts(course_id, num_posts)
+    posts = get_inst_att_needed_posts(course_id, num_posts)
     return jsonify({'posts': posts}), 202
 
 
