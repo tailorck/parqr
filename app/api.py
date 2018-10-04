@@ -16,6 +16,7 @@ from app.statistics import (
     number_posts_prevented,
     total_posts_in_course,
     get_inst_att_needed_posts,
+    get_stud_att_needed_posts,
     is_course_id_valid
 )
 from app.constants import (
@@ -166,12 +167,22 @@ def get_parqr_stats(course_id):
 
 
 @app.route(api_endpoint + 'class/<course_id>/attentionposts', methods=['GET'])
-def get_top_posts(course_id):
+def get_top_inst_posts(course_id):
     try:
         num_posts = int(request.args.get('num_posts'))
-    except ValueError, TypeError:
+    except (ValueError, TypeError):
         raise InvalidUsage('Invalid number of posts specified', 400)
     posts = get_inst_att_needed_posts(course_id, num_posts)
+    return jsonify({'posts': posts}), 202
+
+
+@app.route(api_endpoint + 'class/<course_id>/student_recs', methods=['GET'])
+def get_top_stud_posts(course_id):
+    try:
+        num_posts = int(request.args.get('num_posts'))
+    except (ValueError, TypeError):
+        raise InvalidUsage('Invalid number of posts specified', 400)
+    posts = get_stud_att_needed_posts(course_id, num_posts)
     return jsonify({'posts': posts}), 202
 
 
