@@ -8,11 +8,10 @@ body, and tags of a new post.
 
 #### Getting Started
 1. Download `docker` and `docker-compose`.
-2. Set up a `virtualenv` for python using this handy-dandy article from [The Hitchhiker's Guide to Python](https://docs.python-guide.org/dev/virtualenvs/#lower-level-virtualenv). I would also recommend setting up the `virtualenvwrapper` so you can use nice commands like `workon` and `toggleglobalsitepackages`.
-3. Clone this repo.
-4. Inside the repo, store your Piazza credentials in an encrypted file with `python encrypt_login.py`.
-5. Spin up the docker containers with `docker-compose up --build -d`. The first time will take a few minutes to download the mongo and redis images.
-6. If everything went according to plan, `curl localhost` should return `Hello, World!`.
+2. Clone this repo.
+3. Inside the repo, store your Piazza credentials in an encrypted file with `python encrypt_login.py`.
+4. Spin up the docker containers with `docker-compose up --build -d`. The first time will take a few minutes to download the mongo and redis images.
+5. If everything went according to plan, `curl localhost` should return `Hello, World!`.
 
 #### Debugging
 
