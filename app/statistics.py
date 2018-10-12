@@ -222,8 +222,10 @@ def get_top_attention_warranted_posts(course_id, number_of_posts):
     if not is_valid:
         raise InvalidUsage('Invalid course id provided')
 
+    DATE_CUTOFF = datetime.now() + datetime.timedelta(days=-21)
     posts = Post.objects(course_id=course_id, post_type='question',
-                         tags__nin=['instructor-question'])
+                         tags__nin=['instructor-question'],
+                         created__gt=DATE_CUTOFF)
 
     def _create_top_post(post):
         post_data = {}
