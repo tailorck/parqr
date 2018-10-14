@@ -225,8 +225,10 @@ def get_inst_att_needed_posts(course_id, number_of_posts):
     if not is_valid:
         raise InvalidUsage('Invalid course id provided')
 
+    DATE_CUTOFF = datetime.now() + datetime.timedelta(days=-21)
     posts = Post.objects(course_id=course_id, post_type='question',
-                         tags__nin=['instructor-question'])
+                         tags__nin=['instructor-question'],
+                         created__gt=DATE_CUTOFF)
 
     def _create_top_post(post):
         post_data = {}
@@ -252,12 +254,12 @@ def get_inst_att_needed_posts(course_id, number_of_posts):
         return map(_create_top_post, posts)
 
     # Pick out posts with no instructor answer
-    posts = posts.filter(i_answer__exists=False)
+    posts = posts.filter(i_answer=None)
     if posts.count() <= number_of_posts:
         return map(_create_top_post, posts)
 
     # Pick out posts with no instructor or student answer
-    posts = posts.filter(s_answer__exists=False)
+    posts = posts.filter(s_answer=None)
     if posts.count() <= number_of_posts:
         return map(_create_top_post, posts)
 
