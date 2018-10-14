@@ -60,7 +60,17 @@ class Parser(object):
         # Get handle to the corresponding course document or create a new one
         course = Course.objects(course_id=course_id)
         if not course:
-            course = Course(course_id).save()
+            enrolled_courses = self._piazza.get_user_classes()
+            for enrolled_course in enrolled_courses:
+                if enrolled_course["nid"] == course_id:
+                    course_name = enrolled_course["name"]
+                    course_number =  enrolled_course["num"]
+                    course_term = enrolled_course["term"]
+
+                    course = Course(course_id=course_id,
+                                    course_name=course_name,
+                                    course_number=course_number,
+                                    course_term=course_term).save()
 
         start_time = time.time()
         for pid in pbar(xrange(1, total_questions + 1)):
