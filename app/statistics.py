@@ -120,7 +120,7 @@ def number_posts_prevented(course_id, starting_time):
         raise InvalidUsage('Invalid start time provided')
 
     # Extract relevant information from mongoDB for the course_id
-    starting_datetime = datetime.fromtimestamp(1000 * starting_time)
+    starting_datetime = datetime.fromtimestamp(starting_time)
     events = Event.objects(event_data__course_id=course_id, 
                             time__gt=starting_datetime)
     events = events.order_by('user_id', 'time')
