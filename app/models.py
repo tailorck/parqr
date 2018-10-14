@@ -12,6 +12,7 @@ class Followup(db.EmbeddedDocument):
 
 class Post(db.Document):
     course_id = db.StringField(required=True)
+    created = db.DateTimeField(required=True)
     post_id = db.IntField(required=True, unique_with='course_id')
     subject = db.StringField(required=True)
     body = db.StringField(required=True)

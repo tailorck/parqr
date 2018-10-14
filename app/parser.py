@@ -1,3 +1,4 @@
+from datetime import datetime
 import time
 import logging
 
@@ -6,6 +7,7 @@ from piazza_api import Piazza
 from piazza_api.exceptions import AuthenticationError, RequestError
 from progressbar import ProgressBar
 
+from app.constants import DATETIME_FORMAT
 from app.models import Course, Post
 from app.utils import read_credentials, stringify_followups
 
@@ -91,6 +93,8 @@ class Parser(object):
             # Extract number of unique views of the post
             num_views = post['unique_views']
 
+            # Get creation time
+            created = datetime.strptime(post['created'], DATETIME_FORMAT)
             # Extract number of unresolved followups (if any)
             num_unresolved_followups = self._extract_num_unresolved(post)
 
@@ -112,13 +116,13 @@ class Parser(object):
                 is_updated = self._check_for_updates(db_post, new_fields)
 
                 if is_updated is True:
-                    db_post.update(subject=subject, body=body,
+                    db_post.update(subject=subject, created=created, body=body,
                                    s_answer=s_answer, i_answer=i_answer,
                                    followups=followups,
                                    num_unresolved_followups=num_unresolved_followups,
                                    num_views=num_views)
             else:
-                mongo_post = Post(course_id, pid, subject, body, tags,
+                mongo_post = Post(course_id, created, pid, subject, body, tags,
                                   post_type, s_answer, i_answer, followups,
                                   num_views, num_unresolved_followups).save()
                 course.update(add_to_set__posts=mongo_post)
