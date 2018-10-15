@@ -2,7 +2,7 @@ version: '2'
 services:
     queue:
         image: redis:latest
-        command: redis-server
+        command: redis-server --save "" --appendonly no
         ports:
             - "6379:6379"
 
