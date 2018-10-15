@@ -225,7 +225,7 @@ def get_inst_att_needed_posts(course_id, number_of_posts):
     if not is_valid:
         raise InvalidUsage('Invalid course id provided')
 
-    DATE_CUTOFF = datetime.now() + datetime.timedelta(days=-21)
+    DATE_CUTOFF = datetime.now() + timedelta(days=-21)
     posts = Post.objects(course_id=course_id, post_type='question',
                          tags__nin=['instructor-question'],
                          created__gt=DATE_CUTOFF)
