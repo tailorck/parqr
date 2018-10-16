@@ -20,8 +20,13 @@ def clean(string):
     cleaned_string : str
         The cleaned version of input string
     """
-    only_letters = re.sub('[^a-zA-Z]', ' ', string)
-    cleaned_string = only_letters.lower().strip()
+    # TODO: This was implemented like so to avoid dangling possessive endings,
+    # but the new stop words including most possessive endings. Revisit for
+    # speed improvements.
+    string = string.replace('\n', ' ').replace('\r', ' ')
+    only_letters = re.sub('[^a-zA-Z ]', '', string)
+    no_mult_spaces = re.sub(' +', ' ', only_letters)
+    cleaned_string = no_mult_spaces.lower().strip()
     return cleaned_string
 
 

@@ -8,7 +8,7 @@ def read(fname):
 
 setup(
     name="PARQR",
-    version="0.0.1",
+    version="1.2.0",
     author="Chirag Tailor",
     author_email="cktailor34@gmail.com",
     description="Piazza Automated Related Question Recommender",

@@ -114,3 +114,8 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+*.iml
+.idea/
+.github/
+*.pem
+*.login

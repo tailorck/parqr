@@ -1,54 +1,69 @@
-from multiprocessing.dummy import Pool
-from functools import partial
-from threading import Thread
 import logging
 import warnings
 
 import numpy as np
-from sklearn.feature_extraction import text
+import nltk
+from nltk import SnowballStemmer, WordNetLemmatizer
+from nltk.corpus import stopwords
+from sklearn.feature_extraction.text import TfidfVectorizer, ENGLISH_STOP_WORDS
 
+from app.constants import TFIDF_MODELS
+from app.models import Post, Course
 from app.exception import InvalidUsage
-from constants import TFIDF_MODELS
-from models import Post, Course
-from utils import clean_and_split, stringify_followups, ModelCache
+from app.utils import (
+    clean_and_split,
+    stringify_followups,
+    ModelCache
+)
 
 warnings.filterwarnings("ignore")
+
+logger = logging.getLogger('app')
+
+nltk.download('punkt')
+nltk.download('wordnet')
+nltk.download('stopwords')
+
+nltk_stop_words = set(stopwords.words('english'))
+sklearn_stop_words = set(ENGLISH_STOP_WORDS)
+STOP_WORDS = nltk_stop_words & sklearn_stop_words
+
+lemmatizer = WordNetLemmatizer()
+stemmer = SnowballStemmer("english", ignore_stopwords=True)
+
+
+def stem_lem_tokenizer(doc):
+    """
+    Removes all non-alphabet characters, splits doc into words, lemmatizes
+    each word into root dictionary form, stems to get its non-changing
+    portion.
+
+    This functionality had to be implemented in a stand-alone function so that
+    it can be pickled with the model object.
+
+    Args:
+        doc (str): The document to be tokenized
+
+    Returns:
+        List of stemmed and lemmatized words from doc
+    """
+    return [stemmer.stem(lemmatizer.lemmatize(w))
+            for w in clean_and_split(doc)]
 
 
 class ModelTrain(object):
 
-    def __init__(self, verbose=False):
-        """ModelTrain constructor
-
-        Args:
-            verbose (bool): A bool denoting if the module will print info msgs
-        """
-        # TODO: remove hard coded resources path.
-        # Requires getting setup.py working and then use pkg_resources
-        self.verbose = verbose
-        self.model_cache = ModelCache('app/resources')
-        self.logger = logging.getLogger('app')
-        self._threads = {}
+    def __init__(self):
+        """ModelTrain constructor"""
+        self.model_cache = ModelCache()
 
     def persist_all_models(self):
         """Creates new models for each course in database and persists each to
         file"""
         for course in Course.objects():
-            self.persist_model(course.cid)
+            self.persist_models(course.course_id)
 
-    def persist_model(self, cid):
-        """Creates new models for course with given cid
-
-        Args:
-            cid (str): The course id of interest
-        """
-        if cid in self._threads and self._threads[cid].is_alive():
-            raise InvalidUsage('Background thread is running', 500)
-
-        self._threads[cid] = Thread(target=self._persist_model, args=(cid,))
-        self._threads[cid].start()
-
-    def _persist_model(self, cid):
+    def persist_models(self, cid):
         """Vectorizes the information in database into multiple TF-IDF models.
         The models are persisted by pickling the TF-IDF sklearn models,
         storing the sparse vector matrix as a npz file, and saving the
@@ -57,13 +72,13 @@ class ModelTrain(object):
         Args:
             cid: The course id of the class to vectorize
         """
-        # TODO: Catch invalid cid
-        self.logger.info('Vectorizing words from course: {}'.format(cid))
+        if not Course.objects(course_id=cid):
+            raise InvalidUsage('Invalid course id provided')
 
-        pool = Pool(4)
-        partial_func = partial(self._create_tfidf_model, cid)
-        pool.map(partial_func, list(TFIDF_MODELS))
-        pool.close()
+        logger.info('Vectorizing words from course: {}'.format(cid))
+
+        for model in list(TFIDF_MODELS):
+            self._create_tfidf_model(cid, model)
 
     def _create_tfidf_model(self, cid, model_name):
         """Creates a new TfidfVectorizer model from the relevant text in course
@@ -79,12 +94,13 @@ class ModelTrain(object):
             model_name (str): The name of the model dictated by the
                 TFIDF_MODELS enum
         """
-        stop_words = set(text.ENGLISH_STOP_WORDS)
         words, pid_list = self._get_words_for_model(cid, model_name)
 
         if words.size != 0:
-            vectorizer = text.TfidfVectorizer(analyzer='word',
-                                              stop_words=stop_words)
+            vectorizer = TfidfVectorizer(analyzer='word',
+                                         stop_words=STOP_WORDS,
+                                         tokenizer=stem_lem_tokenizer,
+                                         lowercase=True)
             matrix = vectorizer.fit_transform(words)
 
             self.model_cache.store_model(cid, model_name, vectorizer)
@@ -115,25 +131,25 @@ class ModelTrain(object):
         words = []
         model_pid_list = []
 
-        for post in Post.objects(cid=cid):
+        for post in Post.objects(course_id=cid):
             if model_name == TFIDF_MODELS.POST:
                 clean_subject = clean_and_split(post.subject)
                 clean_body = clean_and_split(post.body)
                 tags = post.tags
                 words.append(' '.join(clean_subject + clean_body + tags))
-                model_pid_list.append(post.pid)
+                model_pid_list.append(post.post_id)
             elif model_name == TFIDF_MODELS.I_ANSWER:
                 if post.i_answer:
                     words.append(' '.join(clean_and_split(post.i_answer)))
-                    model_pid_list.append(post.pid)
+                    model_pid_list.append(post.post_id)
             elif model_name == TFIDF_MODELS.S_ANSWER:
                 if post.s_answer:
                     words.append(' '.join(clean_and_split(post.s_answer)))
-                    model_pid_list.append(post.pid)
+                    model_pid_list.append(post.post_id)
             elif model_name == TFIDF_MODELS.FOLLOWUP:
                 if post.followups:
                     followup_str = stringify_followups(post.followups)
                     words.append(' '.join(clean_and_split(followup_str)))
-                    model_pid_list.append(post.pid)
+                    model_pid_list.append(post.post_id)
 
         return np.array(words), np.array(model_pid_list)
