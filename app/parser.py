@@ -72,6 +72,7 @@ class Parser(object):
                                     course_number=course_number,
                                     course_term=course_term).save()
 
+        current_pids = set()
         start_time = time.time()
         for pid in pbar(xrange(1, total_questions + 1)):
             # Get the post if available
@@ -83,6 +84,9 @@ class Parser(object):
             # Skip deleted and private posts
             if post['status'] == 'deleted' or post['status'] == 'private':
                 continue
+
+            # If the post is neither deleted nor private, it should be in the db
+            current_pids.add(pid)
 
             # TODO: Parse the type of the post, to indicate if the post is
             # a note/announcement
@@ -128,6 +132,17 @@ class Parser(object):
                                   post_type, s_answer, i_answer, followups,
                                   num_views, num_unresolved_followups).save()
                 course.update(add_to_set__posts=mongo_post)
+
+        # Get all the posts for this course in the db
+        db_posts = Post.objects(course_id=course_id).only('post_id')
+        db_pids = set(post.post_id for post in db_posts)
+
+        # Delete pids which are in the db but aren't one of the current pids
+        pids_to_delete = db_pids - current_pids
+        deleted_posts = Post.objects(post_id__in=pids_to_delete).delete()
+
+        if deleted_posts > 0:
+            logger.info("Deleted {} posts while parsing course_id {} ".format(deleted_posts, course_id))
 
         # TODO: Figure out another way to verify whether the current user has
         # access to a class.

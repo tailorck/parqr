@@ -239,3 +239,24 @@ def get_supported_classes():
 @jwt_required()
 def get_enrolled_classes():
     return jsonify(parser.get_enrolled_courses())
+
+
+@app.route(api_endpoint + 'class/parse', methods=['POST'])
+@verify_non_empty_json_request
+@jsonschema.validate('course')
+@jwt_required()
+def post_course_trigger_parse():
+    course_id = request.json['course_id']
+
+    if redis.exists(course_id):
+        logger.info('Triggering parse for course id {}'.format(course_id))
+        successful_parse = parser.update_posts(course_id)
+
+        if successful_parse:
+            return jsonify({'message': 'success'}), 200
+
+        else:
+            return jsonify({'message': 'failure'}), 500
+
+    else:
+        raise InvalidUsage('Course ID does not exists', 400)
