@@ -134,8 +134,7 @@ class Parser(object):
                 course.update(add_to_set__posts=mongo_post)
 
         # Get all the posts for this course in the db
-        db_posts = Post.objects(course_id=course_id).only('post_id')
-        db_pids = set(post.post_id for post in db_posts)
+        db_pids = set(Post.objects(course_id=course_id).distinct(field='post_id'))
 
         # Delete pids which are in the db but aren't one of the current pids
         pids_to_delete = db_pids - current_pids
