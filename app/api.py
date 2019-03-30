@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 import logging
+import json
 
 from flask import jsonify, make_response, request
 from flask_jsonschema import JsonSchema, ValidationError
@@ -8,9 +9,10 @@ from flask_httpauth import HTTPBasicAuth
 from flask_jwt import JWT, jwt_required
 from redis import Redis
 from rq_scheduler import Scheduler
+from flask_cors import CORS, cross_origin
 
 from app import app
-from app.models import Course, Event, EventData, User
+from app.models import Course, Event, EventData, User, Post
 from app.statistics import (
     get_unique_users,
     number_posts_prevented,
@@ -44,6 +46,9 @@ auth = HTTPBasicAuth()
 
 logger.info('Ready to serve requests')
 
+with open('related_courses.json') as f:
+    related_courses = json.load(f)
+CORS(app)
 
 @app.errorhandler(404)
 def not_found(error):
@@ -109,6 +114,40 @@ def similar_posts():
     query = request.json['query']
     similar_posts = parqr.get_recommendations(course_id, query, 5)
     return jsonify(similar_posts)
+
+
+@app.route(api_endpoint + 'answer_recommendations', methods=['POST'])
+@verify_non_empty_json_request
+@jsonschema.validate('query')
+def instructor_rec():
+    course_id = request.json['course_id']
+    if not Course.objects(course_id=course_id) or course_id not in related_courses:
+        logger.error('New un-registered course found: {}'.format(course_id))
+        raise InvalidUsage("Course with course id {} not supported at this "
+                           "time.".format(course_id), 400)
+
+    query = request.json['query']
+
+    response = defaultdict(list)
+    for rel_course_id in related_courses[course_id]:
+        if not Course.objects(course_id=rel_course_id):
+            continue
+
+        recs = parqr.get_recommendations(rel_course_id, query, 5)
+        recs_post_ids = [rec['pid'] for rec in recs.values()]
+        recommended_posts = Post.objects(course_id=rel_course_id,
+                                         post_id__in=recs_post_ids)
+
+        for post in recommended_posts:
+            if post.i_answer is not None:
+                response[rel_course_id].append({
+                    "post_id": post.post_id,
+                    "student_subject": post.subject,
+                    "student_post": post.body,
+                    "instructor_answer": post.i_answer
+                })
+
+    return jsonify(response)
 
 
 # TODO: Add additional attributes (i.e. professor, classes etc.)

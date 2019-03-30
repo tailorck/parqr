@@ -1,11 +1,7 @@
 import cPickle as pickle
 import logging
-import os
 
-import numpy as np
 from redis import Redis
-from scipy.sparse import save_npz, load_npz
-from sklearn.externals import joblib
 
 
 logger = logging.getLogger('app')
