@@ -23,7 +23,7 @@ def clean(string):
     # TODO: This was implemented like so to avoid dangling possessive endings,
     # but the new stop words including most possessive endings. Revisit for
     # speed improvements.
-    string = string.replace('\n', ' ').replace('\r', ' ')
+    string = string.replace('\n', ' ').replace('\r', ' ').replace(u'\xa0', ' ')
     only_letters = re.sub('[^a-zA-Z ]', '', string)
     no_mult_spaces = re.sub(' +', ' ', only_letters)
     cleaned_string = no_mult_spaces.lower().strip()
