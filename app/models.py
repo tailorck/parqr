@@ -53,7 +53,7 @@ class Course(db.Document):
 class EventData(db.EmbeddedDocument):
     course_id = db.StringField(required=True)
     post_id = db.IntField()
-
+    other_data = db.DictField()
 
 class Event(db.Document):
     event_type = db.StringField(required=True)
