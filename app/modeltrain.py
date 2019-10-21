@@ -2,9 +2,6 @@ import logging
 import warnings
 
 import numpy as np
-import nltk
-from nltk import SnowballStemmer, WordNetLemmatizer
-from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer, ENGLISH_STOP_WORDS
 
 from app.constants import TFIDF_MODELS
@@ -20,35 +17,7 @@ warnings.filterwarnings("ignore")
 
 logger = logging.getLogger('app')
 
-nltk.download('punkt')
-nltk.download('wordnet')
-nltk.download('stopwords')
-
-nltk_stop_words = set(stopwords.words('english'))
-sklearn_stop_words = set(ENGLISH_STOP_WORDS)
-STOP_WORDS = nltk_stop_words & sklearn_stop_words
-
-lemmatizer = WordNetLemmatizer()
-stemmer = SnowballStemmer("english", ignore_stopwords=True)
-
-
-def stem_lem_tokenizer(doc):
-    """
-    Removes all non-alphabet characters, splits doc into words, lemmatizes
-    each word into root dictionary form, stems to get its non-changing
-    portion.
-
-    This functionality had to be implemented in a stand-alone function so that
-    it can be pickled with the model object.
-
-    Args:
-        doc (str): The document to be tokenized
-
-    Returns:
-        List of stemmed and lemmatized words from doc
-    """
-    return [stemmer.stem(lemmatizer.lemmatize(w))
-            for w in clean_and_split(doc)]
+STOP_WORDS = set(ENGLISH_STOP_WORDS)
 
 
 class ModelTrain(object):
@@ -99,7 +68,6 @@ class ModelTrain(object):
         if words.size != 0:
             vectorizer = TfidfVectorizer(analyzer='word',
                                          stop_words=STOP_WORDS,
-                                         tokenizer=stem_lem_tokenizer,
                                          lowercase=True)
             matrix = vectorizer.fit_transform(words)
 
