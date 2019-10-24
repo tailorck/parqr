@@ -1,4 +1,4 @@
-import cPickle as pickle
+import pickle
 import random
 import os
 
@@ -23,7 +23,7 @@ def model_cache(tmpdir):
 @pytest.fixture(scope='module')
 def dummy_cid():
     ALPHABET = '123456789abcdefghijklmnopqrstuvwxyz'
-    cid = ''.join([random.choice(ALPHABET) for i in xrange(14)])
+    cid = ''.join([random.choice(ALPHABET) for i in range(14)])
     return cid
 
 

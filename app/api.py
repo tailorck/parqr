@@ -35,7 +35,8 @@ from app.schemas import (
     event,
     query,
     train_model,
-    feedback_schema)
+    feedback_schema
+)
 
 from app.tasksrq import parse_and_train_models
 from app.exception import InvalidUsage, to_dict
