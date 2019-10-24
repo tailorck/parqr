@@ -4,7 +4,6 @@ import os
 
 from flask import Flask
 import rq_dashboard
-from Crypto.PublicKey import RSA
 
 from ..config import config_dict
 
@@ -24,12 +23,27 @@ def create_app(config_name):
     -------
     app : Flask object
     """
-    app = Flask('app')
+    app = Flask(__name__)
 
     # First import the default settings from rq_dashboard to monitor redis
     # queues on the web.
     app.config.from_object(rq_dashboard.default_settings)
     app.register_blueprint(rq_dashboard.blueprint, url_prefix='/rq')
+
+    '''
+    Import and register the blueprint from the factory using app.register_blueprint(). 
+    Place the new code at the end of the factory function before returning the app.
+    
+    When a blueprint is registered, 
+    any view functions, templates, static files, error handlers, etc. are connected to the app
+    
+    The error blueprint will have views to (functionality of app)
+    '''
+    # from app.errors import bp as errors_bp
+    # app.register_blueprint(errors_bp)
+    #
+    # from app.auth import bp as auth_bp
+    # app.register_blueprint(auth_bp, url_prefix='/auth')
 
     # Override some parameters of rq_dashboard config with app.config
     app.config.from_object(config_dict[config_name])
@@ -54,11 +68,4 @@ def create_app(config_name):
 
 def read_credentials():
     """Method to read encrypted .login file for Piazza username and password"""
-    with open('.key.pem') as f:
-        key = RSA.importKey(f.read())
-
-    with open('.login') as f:
-        email_bytes = f.read(128)
-        password_bytes = f.read(128)
-
-    return key.decrypt(email_bytes), key.decrypt(password_bytes)
+    return 'parqrdevteam@gmail.com', 'parqrproducers'

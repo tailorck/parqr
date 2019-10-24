@@ -1,5 +1,5 @@
 from app.modeltrain import ModelTrain
-from parser import Parser
+from app.parser import Parser
 
 
 def parse_and_train_models(course_id):

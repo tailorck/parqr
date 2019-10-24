@@ -1,3 +1,3 @@
-from utils import *
-from string_utils import *
-from model_cache import ModelCache
+from app.utils.utils import *
+from app.utils.string_utils import *
+from app.utils.model_cache import ModelCache

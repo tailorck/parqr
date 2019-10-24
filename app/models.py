@@ -5,6 +5,22 @@ from passlib.apps import custom_app_context as pwd_context
 db = MongoEngine(app)
 
 
+class QueryRecommendationPair(db.Document):
+    course_id = db.StringField(required=True)
+    time = db.DateTimeField(required=True)
+    query = db.StringField(required=True)
+    recommended_pids = db.ListField(db.IntField())
+
+
+class StudentFeedbackRecord(db.Document):
+    course_id = db.StringField(required=True)
+    user_id = db.StringField(required=True)
+    time = db.DateTimeField(required=True)
+    query_rec_pair = db.ReferenceField(QueryRecommendationPair, required=True)
+    feedback_pid = db.IntField(required=True)
+    user_rating = db.IntField(required=True)
+
+
 class Followup(db.EmbeddedDocument):
     text = db.StringField(required=True)
     responses = db.ListField(db.StringField())
@@ -32,14 +48,14 @@ class Post(db.Document):
             return string
 
         attrs = []
-        print '<{}: id={!r}>'.format(type(self).__name__, self.id)
+        print('<{}: id={!r}>'.format(type(self).__name__, self.id))
         fields = ['course_id', 'post_id', 'subject', 'body', 'tags',
                   's_answer', 'i_answer', 'followups']
         for name in fields:
             value = getattr(self, name)
-            if isinstance(value, unicode):
+            if isinstance(value, str):
                 value = _format_long_string(value)
-            print '    {} = {}'.format(name, value)
+            print('    {} = {}'.format(name, value))
 
 
 class Course(db.Document):

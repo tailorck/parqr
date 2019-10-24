@@ -4,7 +4,8 @@ import logging
 import json
 
 from flask import jsonify, make_response, request
-from flask_jsonschema import JsonSchema, ValidationError
+from flask_json_schema import JsonSchema, JsonValidationError
+
 from flask_httpauth import HTTPBasicAuth
 from flask_jwt import JWT, jwt_required
 from redis import Redis
@@ -12,6 +13,7 @@ from rq_scheduler import Scheduler
 from flask_cors import CORS, cross_origin
 
 from app import app
+
 from app.models import Course, Event, EventData, User, Post
 from app.statistics import (
     get_unique_users,
@@ -23,19 +25,31 @@ from app.statistics import (
 )
 from app.constants import (
     COURSE_PARSE_TRAIN_TIMEOUT_S,
-    COURSE_PARSE_TRAIN_INTERVAL_S
+    COURSE_PARSE_TRAIN_INTERVAL_S,
+    FEEDBACK_MAX_RATING,
+    FEEDBACK_MIN_RATING
 )
+from app.schemas import (
+    user,
+    course,
+    event,
+    query,
+    train_model,
+    feedback_schema)
+
 from app.tasksrq import parse_and_train_models
 from app.exception import InvalidUsage, to_dict
 from app.parser import Parser
 from app.parqr import Parqr
+from app.feedback import Feedback
 
 api_endpoint = '/api/'
 
 parqr = Parqr()
 parser = Parser()
-jsonschema = JsonSchema(app)
+schema = JsonSchema(app)
 
+feedback = Feedback(FEEDBACK_MAX_RATING, FEEDBACK_MIN_RATING)
 logger = logging.getLogger('app')
 
 redis_host = app.config['REDIS_HOST']
@@ -50,6 +64,24 @@ with open('related_courses.json') as f:
     related_courses = json.load(f)
 CORS(app)
 
+
+
+def verify(username, password):
+    print(username)
+    Identity = namedtuple('Identity', ['id'])
+    user = User.objects(username=username).first()
+    if not user or not user.verify_password(password):
+        return False
+    return Identity(str(user.pk))
+
+
+def identity(payload):
+    user_id = payload['identity']
+    return User.objects(pk=user_id).first()
+
+
+jwt = JWT(app, verify, identity)
+
 @app.errorhandler(404)
 def not_found(error):
     return make_response(jsonify({'error': 'endpoint not found'}), 404)
@@ -60,9 +92,12 @@ def on_invalid_usage(error):
     return make_response(jsonify(to_dict(error)), error.status_code)
 
 
-@app.errorhandler(ValidationError)
+@app.errorhandler(JsonValidationError)
 def on_validation_error(error):
-    return make_response(jsonify(to_dict(error)), 400)
+    # return make_response(jsonify(to_dict(error)), 400)
+    return jsonify({'error': error.message,
+                    'errors': [validation_error.message for validation_error
+                               in error.errors]})
 
 
 def verify_non_empty_json_request(func):
@@ -72,7 +107,7 @@ def verify_non_empty_json_request(func):
         if not request.json:
             raise InvalidUsage('Request body must be in JSON format', 400)
         return func(*args, **kwargs)
-    wrapper.func_name = func.func_name
+    wrapper.__name__ = func.__name__
     return wrapper
 
 
@@ -83,8 +118,12 @@ def index():
 
 @app.route(api_endpoint + 'event', methods=['POST'])
 @verify_non_empty_json_request
-@jsonschema.validate('event')
+@schema.validate(event)
 def register_event():
+    '''
+    Define event
+    :return:
+    '''
     millis_since_epoch = request.json['time'] / 1000.0
 
     event = Event()
@@ -103,8 +142,12 @@ def register_event():
 
 @app.route(api_endpoint + 'similar_posts', methods=['POST'])
 @verify_non_empty_json_request
-@jsonschema.validate('query')
+@schema.validate(query)
 def similar_posts():
+    '''
+    Given course_id and query, retrieve 5 similar posts
+    :return:
+    '''
     course_id = request.json['course_id']
     if not Course.objects(course_id=course_id):
         logger.error('New un-registered course found: {}'.format(course_id))
@@ -113,13 +156,23 @@ def similar_posts():
 
     query = request.json['query']
     similar_posts = parqr.get_recommendations(course_id, query, 5)
+    if feedback.requires_feedback():
+        query_rec_id = feedback.save_query_rec_pair(course_id, query, similar_posts)
+        similar_posts = feedback.update_recommendations(query_rec_id, similar_posts)
+
     return jsonify(similar_posts)
 
 
 @app.route(api_endpoint + 'answer_recommendations', methods=['POST'])
 @verify_non_empty_json_request
-@jsonschema.validate('query')
+@schema.validate(query)
 def instructor_rec():
+    '''
+    Given course_id and query, get related course_ids, get 5 similar posts.
+
+
+    :return:
+    '''
     course_id = request.json['course_id']
     if not Course.objects(course_id=course_id) or course_id not in related_courses:
         logger.error('New un-registered course found: {}'.format(course_id))
@@ -153,9 +206,14 @@ def instructor_rec():
 # TODO: Add additional attributes (i.e. professor, classes etc.)
 @app.route(api_endpoint + 'class', methods=['POST'])
 @verify_non_empty_json_request
-@jsonschema.validate('class')
+@schema.validate(course)
 @jwt_required()
 def register_class():
+    '''
+    insturctor registers the class
+
+    :return:
+    '''
     cid = request.json['course_id']
     if not redis.exists(cid):
         logger.info('Registering new course: {}'.format(cid))
@@ -175,10 +233,16 @@ def register_class():
 
 @app.route(api_endpoint + 'class', methods=['DELETE'])
 @verify_non_empty_json_request
-@jsonschema.validate('class')
+@schema.validate(course)
 @jwt_required()
 def deregister_class():
+    '''
+    Deregister the class
+
+    :return:
+    '''
     cid = request.json['course_id']
+
     if redis.exists(cid):
         logger.info('Deregistering course: {}'.format(cid))
         job_id_str = redis.get(cid)
@@ -191,9 +255,15 @@ def deregister_class():
 
 @app.route(api_endpoint + 'class/<course_id>/usage', methods=['GET'])
 def get_parqr_stats(course_id):
+    '''
+    Get num of unique users, num of post prevented, percent of Traffic reduced
+
+    :param course_id:
+    :return:
+    '''
     try:
         start_time = int(request.args.get('start_time'))
-    except ValueError, TypeError:
+    except (ValueError, TypeError) as e:
         raise InvalidUsage('Invalid start time specified', 400)
     num_active_uid = get_unique_users(course_id, start_time)
     num_post_prevented, posts_by_parqr_users = number_posts_prevented(course_id, start_time)
@@ -207,9 +277,23 @@ def get_parqr_stats(course_id):
 
 @app.route(api_endpoint + 'class/<course_id>/attentionposts', methods=['GET'])
 def get_top_inst_posts(course_id):
+    '''
+    For given course_id and number of posts to get, retrieve posts from starting time to now
+
+    Retrieves the top instructor attention needed posts, for a specific
+    course, with the search time being [starting_time, now). The following are
+    the factors used in determining if a post warrants attention or not:
+
+    1) There is no Instructor answer for it
+    2) There is no student answer for it
+    3) There are unanswered followup questions for the post
+
+    :param course_id:
+    :return:
+    '''
     try:
         num_posts = int(request.args.get('num_posts'))
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as e:
         raise InvalidUsage('Invalid number of posts specified. Please specify '
                            'the number of posts you would like as a GET '
                            'parameter `num_posts`.', 400)
@@ -238,7 +322,7 @@ def get_course_isvalid():
 
 @app.route('/api/users', methods=['POST'])
 @verify_non_empty_json_request
-@jsonschema.validate('user')
+@schema.validate(user)
 def new_user():
     username = request.json.get('username')
     password = request.json.get('password')
@@ -250,22 +334,6 @@ def new_user():
     user.hash_password(password)
     user.save()
     return jsonify({'username': user.username}), 201
-
-
-def verify(username, password):
-    Identity = namedtuple('Identity', ['id'])
-    user = User.objects(username=username).first()
-    if not user or not user.verify_password(password):
-        return False
-    return Identity(str(user.pk))
-
-
-def identity(payload):
-    user_id = payload['identity']
-    return User.objects(pk=user_id).first()
-
-
-jwt = JWT(app, verify, identity)
 
 
 @app.route('/api/class', methods=['GET'])
@@ -282,9 +350,14 @@ def get_enrolled_classes():
 
 @app.route(api_endpoint + 'class/parse', methods=['POST'])
 @verify_non_empty_json_request
-@jsonschema.validate('course')
+@schema.validate(course)
 @jwt_required()
 def post_course_trigger_parse():
+    '''
+    For a given course, update the course model.
+
+    :return:
+    '''
     course_id = request.json['course_id']
 
     if redis.exists(course_id):
@@ -299,3 +372,24 @@ def post_course_trigger_parse():
 
     else:
         raise InvalidUsage('Course ID does not exists', 400)
+
+
+@app.route(api_endpoint + 'feedback', methods=['POST'])
+@verify_non_empty_json_request
+@schema.validate(feedback_schema)
+def post_feedback():
+    # Validate the feedback data
+    course_id, user_id, query_rec_id, feedback_pid, user_rating = Feedback.unpack_feedback(request.json)
+    valid, message = feedback.validate_feedback(course_id, user_id, query_rec_id, feedback_pid, user_rating)
+
+    # If not failed, return invalid usage
+    if not valid:
+        raise InvalidUsage("Feedback contains invalid data. " + message, 400)
+
+    success = Feedback.register_feedback(course_id, user_id, query_rec_id, feedback_pid, user_rating)
+
+    if success:
+        return jsonify({'message': 'success'}), 200
+
+    else:
+        return jsonify({'message': 'failure'}), 500

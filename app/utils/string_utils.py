@@ -1,49 +1,31 @@
 import logging
-import re
+import spacy
 
 logger = logging.getLogger('app')
 
 
-def clean(string):
-    """Cleans an input string of nonessential characters for TF-IDF
+def spacy_clean(text, array=True):
+    '''
+    Cleans a string of text by:
+        1. Removing all punctuations
+        2. Stemming all words
+        3. Decapitalize non-proper nouns
+        4. Removing all pronouns
 
-    Removes all punctuation and numbers from string before converting all upper
-    case characters to lower case
+        After installation you need to download a language model.
+        python -m spacy download en
 
-    Parameters
-    ----------
-    string : str
-        The input string that needs cleaning
-
-    Returns
-    -------
-    cleaned_string : str
-        The cleaned version of input string
-    """
-    # TODO: This was implemented like so to avoid dangling possessive endings,
-    # but the new stop words including most possessive endings. Revisit for
-    # speed improvements.
-    string = string.replace('\n', ' ').replace('\r', ' ').replace(u'\xa0', ' ')
-    only_letters = re.sub('[^a-zA-Z ]', '', string)
-    no_mult_spaces = re.sub(' +', ' ', only_letters)
-    cleaned_string = no_mult_spaces.lower().strip()
-    return cleaned_string
-
-
-def clean_and_split(string):
-    """Cleans an input string of nonessential characters and converts to list
-
-    Parameters
-    ----------
-    string : str
-        The input string that needs cleaning
-
-    Returns
-    -------
-    split_string : str
-        The cleaned string split up into a list by whitespace
-    """
-    return clean(string).split()
+        Verify all installed models are compatible with spaCy version
+        python -m spacy validate
+        :param text: input string
+        :return: array of cleaned tokens
+    '''
+    #loading model
+    nlp = spacy.load("en_core_web_sm")
+    #creating a doc object by applying model to the text
+    doc = nlp(text)
+    res = [token.lemma_ for token in doc if token.pos_ not in {"PUNCT", "PART", "PRON"}]
+    return res if array else "".join(res)
 
 
 def stringify_followups(followup_list):

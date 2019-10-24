@@ -5,9 +5,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import pandas as pd
 
-from models import Post
-from utils import clean, ModelCache
-from constants import (
+from app.models import Post, Course, QueryRecommendationPair
+from app.utils import spacy_clean, ModelCache
+from app.constants import (
     TFIDF_MODELS,
     SCORE_THRESHOLD,
     COURSE_MODEL_RELOAD_DELAY_S
@@ -80,7 +80,7 @@ class Parqr(object):
             scores as the keys
         """
         # clean query vector
-        clean_query = clean(query)
+        clean_query = spacy_clean(query, array=False)
 
         # Retrive the scores for each model in the course as a pandas DataFrame
         tfidf_scores = self._get_tfidf_recommendations(cid, clean_query, N)
@@ -97,14 +97,15 @@ class Parqr(object):
             post = Post.objects.get(course_id=cid, post_id=pid)
             score = final_scores.loc[pid][0]
             subject = post.subject
-            s_answer = True if post.s_answer != None else False
-            i_answer = True if post.i_answer != None else False
+            s_answer = True if not post.s_answer else False
+            i_answer = True if not post.i_answer else False
 
             if score > SCORE_THRESHOLD:
                 top_posts[score] = {'pid': pid,
                                     'subject': subject,
                                     's_answer': s_answer,
-                                    'i_answer': i_answer}
+                                    'i_answer': i_answer,
+                                    'feedback': False}
 
         return top_posts
 
