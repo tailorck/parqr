@@ -8,7 +8,6 @@
 *.pem
 .login
 logs/*
-app/resources/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

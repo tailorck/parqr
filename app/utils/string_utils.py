@@ -8,7 +8,7 @@ def spacy_clean(text, array=True):
     '''
     Cleans a string of text by:
         1. Removing all punctuations
-        2. Stemming all words
+        2. lemmatization on all words
         3. Decapitalize non-proper nouns
         4. Removing all pronouns
 

@@ -4,6 +4,7 @@ user = {
         "username": { "type": "string" },
         "password": { "type": "string" }
     },
+    "additionalProperties": false,
     "required": ["username", "password"]
 }
 
@@ -12,6 +13,7 @@ course = {
     "properties": {
         "course_id": { "type": "string" }
     },
+    "additionalProperties": true,
     "required": ["course_id"]
 }
 
@@ -28,6 +30,7 @@ event = {
                 "course_id": { "type": "string" }
             },
             "required": ["course_id"]
+            "additionalProperties": true
         }
     },
     "required": ["type", "eventName", "time", "user_id", "eventData"]
@@ -40,6 +43,7 @@ query = {
         "query": { "type": "string" },
         "course_id": { "type": "string" }
     },
+    "additionalProperties": true,
     "required": ["query", "course_id"]
 }
 
@@ -48,6 +52,7 @@ train_model = {
     "properties": {
         "course_id": { "type": "string" }
     },
+    "additionalProperties": true,
     "required": ["course_id"]
 }
 
@@ -61,4 +66,3 @@ feedback_schema = {
         "user_rating": { "type": "number" }
     },
     "required": ["course_id", "user_id", "query_recommendation_id", "feedback_pid", "user_rating"]
-}
