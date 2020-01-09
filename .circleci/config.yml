@@ -30,6 +30,13 @@ jobs:
             virtualenv venv
             . venv/bin/activate
             pip install -r requirements.txt
+
+      - run:
+          name: install spacy model
+          command: |
+            . venv/bin/activate
+            python -m spacy download en
+
       - save_cache:
           paths:
             - ./venv
@@ -42,6 +49,7 @@ jobs:
             . venv/bin/activate
             mkdir ~/repo/logs
             pytest tests/
+
       - store_artifacts:
           path: test-reports
           destination: test-reports

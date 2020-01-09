@@ -1,16 +1,12 @@
 from flask_restful import Resource
-from flask import request, jsonify
-from app.exception import InvalidUsage
-from app.extensions import schema
-from app.models.User import User
-from app.exception import verify_non_empty_json_request
-from app.schemas import user
+from flask import request
+from app.models.user import User
+from app.utils import verify_non_empty_json_request
 
 
 class Users(Resource):
 
     @verify_non_empty_json_request
-    # @schema.validate(user)
     def post(self):
         username = request.json.get('username')
         password = request.json.get('password')

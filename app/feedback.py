@@ -1,7 +1,7 @@
-from app.models.QueryRecommendationPair import QueryRecommendationPair
-from app.models.Course import Course
-from app.models.Post import Post
-from app.models.StudentFeedbackRecord import StudentFeedbackRecord
+from app.models.query_recommendation_pair import QueryRecommendationPair
+from app.models.student_feedback_record import StudentFeedbackRecord
+from app.models.course import Course
+from app.models.post import Post
 from datetime import datetime
 from bson.objectid import ObjectId
 import numpy as np
@@ -125,7 +125,7 @@ class Feedback(object):
             return False
 
         # Get the query-recommendation pair
-        query_rec_pair = QueryRecommendationPair.objects.with_id(query_rec_id)
+        query_rec_pair = Query.objects.with_id(query_rec_id)
 
         # If it doesn't exist, return failure
         if not query_rec_pair:

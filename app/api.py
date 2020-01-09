@@ -1,37 +1,43 @@
-from flask import jsonify, make_response, request
-from flask_json_schema import JsonValidationError
-from flask_restful import Api
-from app.resources.Courses import (
-    Courses,
-    Course_Stat,
-    Course_Enrolled,
-    Course_Supported,
-    Course_Valid
+from flask import jsonify, make_response
+from flask_restful import Api, request, abort
+from flask_jwt import JWTError
+from app.resources.course import (
+    CoursesList,
+    ActiveCourse,
 )
-from app.resources.Events import Events
-from app.resources.Parse import Parse
-from app.resources.Query import Query, Instructor_Query
-from app.resources.Top_Post import Top_Post
-from app.resources.Users import Users
-from app.resources.Feedbacks import Feedbacks
+
+from app.resources.event import Event
+from app.resources.query import StudentQuery, InstructorQuery
+from app.resources.recommendations import StudentRecommendations, InstructorRecommendations
+from app.resources.user import Users
+from app.resources.feedback import Feedback
 from app.exception import InvalidUsage, to_dict
 from app import app
 
-api_endpoint = '/api/v2.0'
-api = Api(app)
 
-api.add_resource(Courses, api_endpoint + '/courses')
-api.add_resource(Course_Stat, api_endpoint + '/courses/<string:course_id>')
-api.add_resource(Course_Enrolled, api_endpoint + '/courses/<string:course_id>/enrolled')
-api.add_resource(Course_Supported, api_endpoint + '/courses/<string:course_id>/supported')
-api.add_resource(Course_Valid, api_endpoint + '/courses/<string:course_id>/valid')
-api.add_resource(Events, api_endpoint + '/events')
-api.add_resource(Instructor_Query, api_endpoint + '/query/instructor')
-api.add_resource(Parse, api_endpoint + '/parse')
-api.add_resource(Query, api_endpoint + '/similar_posts')
-api.add_resource(Top_Post, api_endpoint + '/top_post/<string:course_id>/<string:user>')
+class CustomApi(Api):
+
+    def handle_error(self, e):
+        abort(e.code, str(e))
+
+
+api_endpoint = '/api/v2.0'
+api = CustomApi(app)
+
+api.add_resource(CoursesList, api_endpoint + '/courses')
+api.add_resource(ActiveCourse, api_endpoint + '/course/<string:course_id>/active')
+
+api.add_resource(StudentQuery, api_endpoint + '/course/<string:course_id>/query/student')
+api.add_resource(InstructorQuery, api_endpoint + '/course/<string:course_id>/query/instructor')
+
+api.add_resource(StudentRecommendations, api_endpoint + '/course/<string:course_id>/recommendation/student')
+api.add_resource(InstructorRecommendations, api_endpoint + '/course/<string:course_id>/recommendation/instructor')
+
+
+api.add_resource(Event, api_endpoint + '/event')
+api.add_resource(Feedback, api_endpoint + '/feedback')
+
 api.add_resource(Users, api_endpoint + '/users')
-api.add_resource(Feedbacks, api_endpoint + '/feedbacks')
 
 
 @app.errorhandler(404)
@@ -43,13 +49,6 @@ def not_found(error):
 def on_invalid_usage(error):
     return make_response(jsonify(to_dict(error)), error.status_code)
 
-
-@app.errorhandler(JsonValidationError)
-def on_validation_error(error):
-    # return make_response(jsonify(to_dict(error)), 400)
-    return jsonify({'error': error.message,
-                    'errors': [validation_error.message for validation_error
-                               in error.errors]})
 
 @app.route('/')
 def index():

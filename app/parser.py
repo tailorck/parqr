@@ -8,20 +8,22 @@ from piazza_api.exceptions import AuthenticationError, RequestError
 from progressbar import ProgressBar
 
 from app.constants import DATETIME_FORMAT
-from app.models import Course, Post
+from app.models.course import Course
+from app.models.post import Post
+
 from app.utils import read_credentials, stringify_followups
 
 logger = logging.getLogger('app')
 
 
 class Parser(object):
-
     def __init__(self):
         """Initialize the Piazza object and login with the encrypted username
         and password
         """
         self._piazza = Piazza()
         self._login()
+        self.limit = 1000
 
     def get_enrolled_courses(self):
         enrolled_courses = self._piazza.get_user_classes()
@@ -51,7 +53,6 @@ class Parser(object):
 
         try:
             total_questions = stats['total']['questions']
-            pbar = ProgressBar(maxval=total_questions)
         except KeyError:
             logger.error('Unable to get valid statistics for course_id: {}'
                          .format(course_id))
@@ -67,26 +68,35 @@ class Parser(object):
                     course_number = enrolled_course["num"]
                     course_term = enrolled_course["term"]
 
-                    course = Course(course_id=course_id,
-                                    course_name=course_name,
-                                    course_number=course_number,
-                                    course_term=course_term).save()
+                    Course(course_id=course_id,
+                           course_name=course_name,
+                           course_number=course_number,
+                           course_term=course_term).save()
 
+        pids_to_update = []
         current_pids = set()
+        for offset in range(0, total_questions, self.limit):
+            feed = network.get_feed(limit=self.limit, offset=offset)
+            for post in feed['feed']:
+                if post['status'] == 'deleted' or post['status'] == 'private':
+                    continue
+
+                pid = post['nr']
+                new_modified = datetime.strptime(post['modified'], DATETIME_FORMAT)
+
+                # If the post is neither deleted nor private, it should be in the db
+                current_pids.add(pid)
+
+                db_post = Post.objects(course_id=course_id, post_id=pid).first()
+                if not db_post or db_post.modified < new_modified:
+                    pids_to_update.append(pid)
+
+        pbar = ProgressBar(maxval=len(pids_to_update))
+        logger.info("Parsing {} posts".format(len(pids_to_update)))
         start_time = time.time()
-        for pid in pbar(range(1, total_questions + 1)):
+        for pid in pbar(pids_to_update):
             # Get the post if available
-            try:
-                post = network.get_post(pid)
-            except RequestError:
-                continue
-
-            # Skip deleted and private posts
-            if post['status'] == 'deleted' or post['status'] == 'private':
-                continue
-
-            # If the post is neither deleted nor private, it should be in the db
-            current_pids.add(pid)
+            post = network.get_post(pid)
 
             # TODO: Parse the type of the post, to indicate if the post is
             # a note/announcement
@@ -97,8 +107,10 @@ class Parser(object):
             # Extract number of unique views of the post
             num_views = post['unique_views']
 
-            # Get creation time
+            # Get creation time and last modified time
             created = datetime.strptime(post['created'], DATETIME_FORMAT)
+            modified = datetime.strptime(post['change_log'][-1]['when'], DATETIME_FORMAT)
+
             # Extract number of unresolved followups (if any)
             num_unresolved_followups = self._extract_num_unresolved(post)
 
@@ -110,29 +122,39 @@ class Parser(object):
 
             # If post exists, check if it has been updated and update db if
             # necessary. Else, insert new post and add to course's post list
-            if Post.objects(course_id=course_id, post_id=pid):
-                db_post = Post.objects.get(course_id=course_id, post_id=pid)
-                new_fields = dict(subject=subject, body=body, tags=tags,
-                                  post_type=post_type, s_answer=s_answer,
-                                  i_answer=i_answer, followups=followups,
-                                  num_unresolved_followups=num_unresolved_followups,
-                                  num_views=num_views)
-                is_updated = self._check_for_updates(db_post, new_fields)
+            Post.objects(course_id=course_id, post_id=pid).modify(upsert=True, new=True,
+                                                                  set__course_id=course_id,
+                                                                  set__created=created,
+                                                                  set__modified=modified,
+                                                                  set__post_id=pid,
+                                                                  set__subject=subject,
+                                                                  set__body=body,
+                                                                  set__tags=tags,
+                                                                  set__post_type=post_type,
+                                                                  set__s_answer=s_answer,
+                                                                  set__i_answer=i_answer,
+                                                                  set__followups=followups,
+                                                                  set__num_unresolved_followups=num_unresolved_followups,
+                                                                  set__num_views=num_views)
 
-                if is_updated is True:
-                    db_post.update(subject=subject, created=created, body=body,
-                                   tags=tags,
-                                   post_type=post_type,
-                                   s_answer=s_answer, i_answer=i_answer,
-                                   followups=followups,
-                                   num_unresolved_followups=num_unresolved_followups,
-                                   num_views=num_views)
-            else:
-                mongo_post = Post(course_id, created, pid, subject, body, tags,
-                                  post_type, s_answer, i_answer, followups,
-                                  num_views, num_unresolved_followups).save()
-                course.update(add_to_set__posts=mongo_post)
+        # self._delete_privated_posts(course_id, current_pids)
 
+        # TODO: Figure out another way to verify whether the current user has access to a class.
+        # In the event the course_id was invalid or no posts were parsed, delete course object
+        if Post.objects(course_id=course_id).count() == 0:
+            logger.error('Unable to parse posts for course: {}. Please '
+                         'confirm that the piazza user has access to this '
+                         'course'.format(course_id))
+            Course.objects(course_id=course_id).delete()
+            return False
+
+        end_time = time.time()
+        time_elapsed = end_time - start_time
+        logger.info('Course updated. {} posts scraped in: {:.2f}s'.format(len(pids_to_update), time_elapsed))
+
+        return True
+
+    def _delete_privated_posts(self, course_id, current_pids):
         # Get all the posts for this course in the db
         db_pids = set(Post.objects(course_id=course_id).distinct(field='post_id'))
 
@@ -143,30 +165,12 @@ class Parser(object):
         if deleted_posts > 0:
             logger.info("Deleted {} posts while parsing course_id {} ".format(deleted_posts, course_id))
 
-        # TODO: Figure out another way to verify whether the current user has
-        # access to a class.
-        # In the event the course_id was invalid or no posts were parsed,
-        # delete course object
-        if Post.objects(course_id=course_id).count() == 0:
-            logger.error('Unable to parse posts for course: {}. Please '
-                         'confirm that the piazza user has access to this '
-                         'course'.format(course_id))
-            Course.objects(course_id=course_id).delete()
-            return False
-
-        end_time = time.time()
-        time_elapsed = end_time - start_time
-        logger.info('Course updated. {} posts scraped in: '
-                    '{:.2f}s'.format(total_questions, time_elapsed))
-
-        return True
-
     def _check_for_updates(self, curr_post, new_fields):
         """Checks if post has been updated since last scrape.
 
         Parameters
         ----------
-        curr_post : app.models.Post
+        curr_post : app.models.post
             The current post in the database.
         new_fields : dict
             A dictionary of the most recent scraped fields for the given post
