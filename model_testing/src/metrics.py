@@ -22,12 +22,20 @@ def recall_at_k(rank_pred, y_true: np.ndarray, k: int = 5) -> np.ndarray:
         recall at k for each query
     """
     y_true[y_true > 0] = 1
-    n_relevant = y_true.sum(axis=1, keepdim=True)
-    k = min(len(rank_pred), k)
-    recall = (
-        y_true[np.arange(y_true.shape[0]).reshape(-1, 1), rank_pred[:k]].sum(axis=1)
-        / n_relevant
-    )
+    if isinstance(rank_pred, np.ndarray):
+        n_relevant = y_true.sum(axis=1, keepdims=True)
+        k = min(len(rank_pred), k)
+        recall = (
+            y_true[np.arange(y_true.shape[0]).reshape(-1, 1), rank_pred[:, :k]].sum(axis=1)
+            / n_relevant
+        )
+    else:
+        recall = np.empty(len(rank_pred))
+        for i, (pred, true_labeling) in enumerate(zip(rank_pred, y_true)):
+            k_i = min(len(pred), k)
+            n_relevant = true_labeling.sum()
+            recall[i] = true_labeling[pred[:k_i]].sum() / n_relevant
+
     return recall
 
 
@@ -35,7 +43,7 @@ def precision_at_k(rank_pred, y_true: np.ndarray, k: int = 5) -> np.ndarray:
     """
     Parameters
     ----------
-    rank_pred: np.ndarray[int] shape (n_queries, n_returned)
+    rank_pred: np.ndarray[int] shape (n_queries, n_returned) or list of ndarrays
         list of ids giving the predicted ranking of the documents
     y_true: np.ndarray[int8] shape (n_queries, n_documents)
         list of ground truth scores for documents. y_true[i] > 0 iff document i is relevant to the query
@@ -48,10 +56,17 @@ def precision_at_k(rank_pred, y_true: np.ndarray, k: int = 5) -> np.ndarray:
         precision at k for each query
     """
     y_true[y_true > 0] = 1
-    k = min(len(rank_pred), k)
-    precision = (
-        y_true[np.arange(y_true.shape[0]).reshape(-1, 1), rank_pred[:k]].sum(axis=1) / k
-    )
+    if isinstance(rank_pred, np.ndarray):
+        k = min(len(rank_pred), k)
+        precision = (
+            y_true[np.arange(y_true.shape[0]).reshape(-1, 1), rank_pred[:, :k]].sum(axis=1) / k
+        )
+    else:
+        precision = np.empty(len(rank_pred))
+        for i, (pred, true_labeling) in enumerate(zip(rank_pred, y_true)):
+            k_i = min(len(pred), k)
+            precision[i] = true_labeling[pred[:k_i]].sum() / k_i
+
     return precision
 
 
@@ -71,14 +86,13 @@ def mean_average_precision(rank_pred, y_true: np.ndarray) -> float:
 
     """
     y_true[y_true > 1] = 1
-    n_relevant = y_true.sum(axis=1, keepdim=True)
-    Q = rank_pred.shape[0]
+    n_relevant = y_true.sum(axis=1)
+    Q = len(rank_pred)
     average_precision = np.zeros((Q,))
     for q in range(Q):
         for k in range(n_relevant[q]):
-            average_precision[q] += precision_at_k(rank_pred[q], y_true[q], k=k)
-
-    return np.mean(average_precision / n_relevant)
+            average_precision[q] += precision_at_k(rank_pred[q].reshape(1, -1), y_true[q].reshape(1, -1), k=k)
+    return np.nanmean(average_precision / n_relevant)
 
 
 def discounted_cumulative_gain(
@@ -88,15 +102,18 @@ def discounted_cumulative_gain(
     discount: float = 0.8,
     normalize: bool = False,
 ) -> np.ndarray:
-    scores = true_scores[np.arange(true_scores.shape[0]).reshape(-1, 1), rank_pred[:k]]
-    weights = (discount ** np.arange(k)).reshape(1, -1)
-    dcgn = np.sum(scores * weights, axis=1)
+    if isinstance(rank_pred, np.ndarray):
+        scores = true_scores[np.arange(true_scores.shape[0]).reshape(-1, 1), rank_pred[:, :k]]
+        weights = (discount ** np.arange(k)).reshape(1, -1)
+        dcgn = np.sum(scores * weights, axis=1)
 
-    if normalize:
-        best_ranking = true_scores.sort(axis=1)[:, :k]
-        best_dcgn = np.sum(best_ranking * weights, axis=1)
-        dcgn = dcgn / best_dcgn
+        if normalize:
+            best_ranking = true_scores.sort(axis=1)[:, :k]
+            best_dcgn = np.sum(best_ranking * weights, axis=1)
+            dcgn = dcgn / best_dcgn
 
+    else:
+        pass #TODO
     return dcgn
 
 

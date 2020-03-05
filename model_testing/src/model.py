@@ -23,15 +23,17 @@ class Trainer(object):
         train_data, train_scores = self._dataset.train
         self._model.fit(train_data, train_scores)
 
-    def evaluate(self, metrics: Dict[Callable, Dict[str, Any]]) -> Dict[Union[Callable, str], Any]:
-        test_data, test_scores = self._dataset.test
+    def evaluate(
+        self, metrics: Dict[Callable, Dict[str, Any]]
+    ) -> Dict[Union[Callable, str], Any]:
+        test_data, test_scores = self._dataset.train  #FIXME
+        y_pred = self._model.predict(test_data)
+        import pdb; pdb.set_trace()
         results = {}
         for metric, params in metrics.items():
-            if 'label' in params:
-                label = params.pop('label')
+            if "label" in params:
+                label = params.pop("label")
             else:
                 label = metric.__name__
-            y_pred = self._model.predict(test_data)
             results[label] = metric(y_pred, test_scores, **params)
         return results
-
