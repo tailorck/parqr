@@ -15,7 +15,9 @@ class QuoraDataset(dataset.Dataset):
         with open(data_path, "r") as fp:
             self._data = pd.DataFrame(json.loads(fp.read())).dropna()
         if data_frac < 1:
-            self._data = self._data.groupby(lambda r: len(self._data.loc[r, 'labels']) > 0).apply(lambda x: x.sample(frac=data_frac))
+            self._data = self._data.groupby(
+                lambda r: len(self._data.loc[r, "labels"]) > 0
+            ).apply(lambda x: x.sample(frac=data_frac))
         self._data["one_hot"] = self._data["labels"].apply(self._list_to_labels)
 
         train_mask = np.random.rand(self._data.shape[0]) < train_frac
@@ -25,7 +27,6 @@ class QuoraDataset(dataset.Dataset):
     def _list_to_labels(self, l):
         arr = lil_matrix((1, self._data.shape[0]), dtype=np.int8)
         l = [i for i in l if i < self._data.shape[0]]
-        arr[:, l] = 1
         return arr
 
     @property
@@ -53,14 +54,15 @@ class BasicModel(model.Model):
 
     def predict(self, query):
         query = self._tfidf.transform(query).toarray()
-        import pdb; pdb.set_trace()
-        ind, dist = self._model.query_radius(query, r=0.5, return_distance=True, sort_results=True)
+        ind, dist = self._model.query_radius(
+            query, r=0.5, return_distance=True, sort_results=True
+        )
         return list(ind)
 
 
 if __name__ == "__main__":
     print("Building dataset")
-    dataset = QuoraDataset("./example/Quora_query_pairs.json", data_frac=0.01)
+    dataset = QuoraDataset("./example/Quora_query_pairs.json", data_frac=0.1)
     print("Train samples: ", dataset.train[0].shape[0])
     print("Test samples: ", dataset.test[0].shape[0])
     rank_model = BasicModel()
@@ -71,9 +73,9 @@ if __name__ == "__main__":
         metrics={
             metrics.precision_at_k: {"label": "P@5"},
             metrics.recall_at_k: {"label": "R@5"},
-            metrics.mean_average_precision: {"label": "MAP"},
-            # metrics.discounted_cumulative_gain: {"label": "dcgn"},
+            # metrics.mean_average_precision: {"label": "MAP"},
+            metrics.discounted_cumulative_gain: {"label": "dcgn", "normalize": True},
         }
     )
     for label, result in results.items():
-        print(f'{label}: {result} :: {np.nanmean(result)}')
+        print(f"{label}:  :: {np.nanmean(result)}")

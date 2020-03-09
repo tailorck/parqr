@@ -24,9 +24,11 @@ def recall_at_k(rank_pred, y_true: np.ndarray, k: int = 5) -> np.ndarray:
     y_true[y_true > 0] = 1
     if isinstance(rank_pred, np.ndarray):
         n_relevant = y_true.sum(axis=1, keepdims=True)
-        k = min(len(rank_pred), k)
+        k = min(rank_pred.shape[1], k)
         recall = (
-            y_true[np.arange(y_true.shape[0]).reshape(-1, 1), rank_pred[:, :k]].sum(axis=1)
+            y_true[np.arange(y_true.shape[0]).reshape(-1, 1), rank_pred[:, :k]].sum(
+                axis=1
+            )
             / n_relevant
         )
     else:
@@ -35,7 +37,6 @@ def recall_at_k(rank_pred, y_true: np.ndarray, k: int = 5) -> np.ndarray:
             k_i = min(len(pred), k)
             n_relevant = true_labeling.sum()
             recall[i] = true_labeling[pred[:k_i]].sum() / n_relevant
-
     return recall
 
 
@@ -57,9 +58,12 @@ def precision_at_k(rank_pred, y_true: np.ndarray, k: int = 5) -> np.ndarray:
     """
     y_true[y_true > 0] = 1
     if isinstance(rank_pred, np.ndarray):
-        k = min(len(rank_pred), k)
+        k = min(rank_pred.shape[1], k)
         precision = (
-            y_true[np.arange(y_true.shape[0]).reshape(-1, 1), rank_pred[:, :k]].sum(axis=1) / k
+            y_true[np.arange(y_true.shape[0]).reshape(-1, 1), rank_pred[:, :k]].sum(
+                axis=1
+            )
+            / k
         )
     else:
         precision = np.empty(len(rank_pred))
@@ -89,9 +93,12 @@ def mean_average_precision(rank_pred, y_true: np.ndarray) -> float:
     n_relevant = y_true.sum(axis=1)
     Q = len(rank_pred)
     average_precision = np.zeros((Q,))
+
     for q in range(Q):
-        for k in range(n_relevant[q]):
-            average_precision[q] += precision_at_k(rank_pred[q].reshape(1, -1), y_true[q].reshape(1, -1), k=k)
+        for k in range(1, min(rank_pred[q].shape[0], n_relevant[q]) + 1):
+            average_precision[q] += precision_at_k(
+                rank_pred[q].reshape(1, -1), y_true[q].reshape(1, -1), k=k
+            )
     return np.nanmean(average_precision / n_relevant)
 
 
@@ -103,7 +110,9 @@ def discounted_cumulative_gain(
     normalize: bool = False,
 ) -> np.ndarray:
     if isinstance(rank_pred, np.ndarray):
-        scores = true_scores[np.arange(true_scores.shape[0]).reshape(-1, 1), rank_pred[:, :k]]
+        scores = true_scores[
+            np.arange(true_scores.shape[0]).reshape(-1, 1), rank_pred[:, :k]
+        ]
         weights = (discount ** np.arange(k)).reshape(1, -1)
         dcgn = np.sum(scores * weights, axis=1)
 
@@ -113,8 +122,13 @@ def discounted_cumulative_gain(
             dcgn = dcgn / best_dcgn
 
     else:
-        pass #TODO
+        dcgn = np.empty(len(rank_pred))
+        for i, (pred, scores) in enumerate(zip(rank_pred, true_scores)):
+            weights = discount ** np.arange(k)
+            dcgn[i] = np.sum(scores[: min(k, len(pred))] * weights[: min(k, len(pred))])
+            if normalize:
+                best_ranking = np.sort(scores)[:k]
+                best_dcgn = np.sum(best_ranking * weights)
+                dcgn[i] /= best_dcgn
+
     return dcgn
-
-
-

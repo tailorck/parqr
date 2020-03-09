@@ -26,9 +26,8 @@ class Trainer(object):
     def evaluate(
         self, metrics: Dict[Callable, Dict[str, Any]]
     ) -> Dict[Union[Callable, str], Any]:
-        test_data, test_scores = self._dataset.train  #FIXME
+        test_data, test_scores = self._dataset.test
         y_pred = self._model.predict(test_data)
-        import pdb; pdb.set_trace()
         results = {}
         for metric, params in metrics.items():
             if "label" in params:
