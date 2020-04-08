@@ -8,12 +8,13 @@
 #  && apk del .build-deps
 FROM python:3.6
 
-ADD related_courses.json /parqr/related_courses.json
 ADD requirements.txt /parqr/requirements.txt
 RUN pip install -r /parqr/requirements.txt
 RUN python -m spacy download en_core_web_sm
 
 ADD ./app/ /parqr/app/
+ADD ~/.aws/config ~/.aws/config
+ADD ~/.aws/credentials ~/.aws/credentials
 RUN mkdir /parqr/logs/
 EXPOSE 8000
 WORKDIR /parqr

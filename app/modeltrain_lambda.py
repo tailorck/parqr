@@ -1,24 +1,19 @@
-import logging
 import warnings
 
+import time
+import boto3
+from boto3.dynamodb.conditions import Key, Attr
 import numpy as np
+import simplejson as json
 from sklearn.feature_extraction.text import TfidfVectorizer, ENGLISH_STOP_WORDS
 
 from app.constants import TFIDF_MODELS
-from app.models.course import Course
-from app.models.post import Post
-from app.exception import InvalidUsage
-from app.utils import (
-    spacy_clean,
-    stringify_followups,
-    ModelCache
-)
+from app.model_cache import ModelCache
 
 warnings.filterwarnings("ignore")
 
-logger = logging.getLogger('app')
-
 STOP_WORDS = set(ENGLISH_STOP_WORDS)
+lambda_client = boto3.client('lambda')
 
 
 class ModelTrain(object):
@@ -26,12 +21,7 @@ class ModelTrain(object):
     def __init__(self):
         """ModelTrain constructor"""
         self.model_cache = ModelCache()
-
-    def persist_all_models(self):
-        """Creates new models for each course in database and persists each to
-        file"""
-        for course in Course.objects():
-            self.persist_models(course.course_id)
+        self.posts = boto3.resource('dynamodb').Table("Posts")
 
     def persist_models(self, cid):
         """Vectorizes the information in database into multiple TF-IDF models.
@@ -42,15 +32,10 @@ class ModelTrain(object):
         Args:
             cid: The course id of the class to vectorize
         """
-        if not Course.objects(course_id=cid):
-            raise InvalidUsage('Invalid course id provided')
-
-        logger.info('Training models for course: {}'.format(cid))
+        print('Vectorizing words from course: {}'.format(cid))
 
         for model in list(TFIDF_MODELS):
             self._create_tfidf_model(cid, model)
-
-        logger.info('Completed training models for course: {}'.format(cid))
 
     def _create_tfidf_model(self, cid, model_name):
         """Creates a new TfidfVectorizer model from the relevant text in course
@@ -67,7 +52,7 @@ class ModelTrain(object):
                 TFIDF_MODELS enum
         """
         words, pid_list = self._get_words_for_model(cid, model_name)
-
+        # print(words, pid_list, words.size)
         if words.size != 0:
             vectorizer = TfidfVectorizer(analyzer='word',
                                          stop_words=STOP_WORDS,
@@ -99,28 +84,60 @@ class ModelTrain(object):
                 model_pid_list (list): The pids associated with each string in
                     the words list
         """
-        words = []
-        model_pid_list = []
+        posts = self._get_all_posts(cid)
 
-        for post in Post.objects(course_id=cid):
-            if model_name == TFIDF_MODELS.POST:
-                clean_subject = spacy_clean(post.subject)
-                clean_body = spacy_clean(post.body)
-                tags = post.tags
-                words.append(' '.join(clean_subject + clean_body + tags))
-                model_pid_list.append(post.post_id)
-            elif model_name == TFIDF_MODELS.I_ANSWER:
-                if post.i_answer:
-                    words.append(' '.join(spacy_clean(post.i_answer)))
-                    model_pid_list.append(post.post_id)
-            elif model_name == TFIDF_MODELS.S_ANSWER:
-                if post.s_answer:
-                    words.append(' '.join(spacy_clean(post.s_answer)))
-                    model_pid_list.append(post.post_id)
-            elif model_name == TFIDF_MODELS.FOLLOWUP:
-                if post.followups:
-                    followup_str = stringify_followups(post.followups)
-                    words.append(' '.join(spacy_clean(followup_str)))
-                    model_pid_list.append(post.post_id)
+        payload = {
+            "source": "ModelTrain",
+            "posts": posts,
+            "model_name": model_name.name
+        }
+
+        start = time.time()
+        response = lambda_client.invoke(
+            FunctionName='Parqr-Cleaner:PROD',
+            InvocationType='RequestResponse',
+            Payload=bytes(json.dumps(payload), encoding='utf8')
+        )
+        end = time.time()
+
+        cleaned_posts = json.loads(response['Payload'].read().decode("utf-8"))
+        words = cleaned_posts["words"]
+        model_pid_list = cleaned_posts["model_pid_list"]
+        print("Cleaned {} posts in {} seconds for {}".format(len(model_pid_list), end - start, model_name.name))
 
         return np.array(words), np.array(model_pid_list)
+
+    def _get_all_posts(self, cid: str) -> list:
+        """Retrives all posts for a specific course
+
+        Args:
+            cid: The course id to retrieve posts for
+
+        Returns: a list of post objects
+
+        """
+        response = self.posts.scan(
+            FilterExpression=Attr('course_id').eq(cid)
+        )
+        posts = response['Items']
+
+        while 'LastEvaluatedKey' in response:
+            response = self.posts.scan(
+                FilterExpression=Attr('course_id').eq(cid),
+                ExclusiveStartKey=response['LastEvaluatedKey']
+            )
+            posts.extend(response['Items'])
+
+        print(str(len(posts)) + " posts retrieved")
+        return posts
+
+
+def lambda_handler(event, context):
+    print(event, context)
+    mt = ModelTrain()
+    if event.get("course_ids"):
+        for course_id in event["course_ids"]:
+            mt.persist_models(course_id)
+            print("Course with course_id {}, persisted".format(course_id))
+    # TODO: input from parser
+
