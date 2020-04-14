@@ -104,6 +104,7 @@ class Parser(object):
             pids = [post['nr'] for post in feed if post['m'] > last_modified]
             all_pids = [post['nr'] for post in feed]
         except KeyError:
+
             print('Unable to get feed for course_id: {}'
                   .format(course_id))
             return False, None
