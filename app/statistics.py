@@ -179,12 +179,17 @@ def get_stud_att_needed_posts(course_id, num_posts):
 
     max_age_date = int(datetime.timestamp(now - timedelta(hours=POST_MAX_AGE_DAYS * 24)))
     print(max_age_date)
-    filtered_posts = posts.scan(
+    response = posts.scan(
         FilterExpression=Attr("course_id").eq(course_id) &
                          Attr("post_type").eq("question") &
                          ~Attr("tags").contains("instructor-question") &
                          Attr("created").gt(max_age_date)
-    ).get("Items")
+    )
+    filtered_posts = response.get("Items")
+
+    while 'LastEvaluatedKey' in response:
+        response = posts.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
+        filtered_posts.extend(response['Items'])
 
     if len(filtered_posts) == 0:
         print("No posts found since {} for course_id {}".format(max_age_date, course_id))
