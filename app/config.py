@@ -1,3 +1,7 @@
+'''
+Configuration File
+
+'''
 import logging
 from datetime import timedelta
 from os.path import dirname, abspath, join

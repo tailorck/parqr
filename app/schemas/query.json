@@ -1,9 +1,0 @@
-{
-    "type": "object",
-    "properties": {
-        "query": { "type": "string" },
-        "course_id": { "type": "string" }
-    },
-    "additionalProperties": true,
-    "required": ["query", "course_id"]
-}

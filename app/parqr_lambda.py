@@ -1,19 +1,22 @@
+import random
 from datetime import datetime, timedelta
-import logging
 
+import time
+import json
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import pandas as pd
+import boto3
 
-from models import Post
-from utils import clean, ModelCache
-from constants import (
+from app.model_cache import ModelCache
+from app.constants import (
     TFIDF_MODELS,
     SCORE_THRESHOLD,
     COURSE_MODEL_RELOAD_DELAY_S
 )
 
-logger = logging.getLogger('app')
+dynamodb_resource = boto3.resource('dynamodb')
+lambda_client = boto3.client('lambda')
 
 
 class ModelInfo(object):
@@ -79,8 +82,23 @@ class Parqr(object):
             A sorted dict of the top N most similar posts with their similarity
             scores as the keys
         """
+        # Connect to DDB
+        course = dynamodb_resource.Table("Posts")
+
+        payload = {
+            "source": "Query",
+            "query": query
+        }
+        print(payload)
+        start = time.time()
+        response = lambda_client.invoke(
+            FunctionName='Parqr-Cleaner:PROD',
+            InvocationType='RequestResponse',
+            Payload=bytes(json.dumps(payload), encoding='utf8')
+        )
+        print("Cleaned Query in {} ms".format((time.time() - start) * 100))
         # clean query vector
-        clean_query = clean(query)
+        clean_query = json.loads(response['Payload'].read().decode("utf-8")).get("clean_query")
 
         # Retrive the scores for each model in the course as a pandas DataFrame
         tfidf_scores = self._get_tfidf_recommendations(cid, clean_query, N)
@@ -94,17 +112,34 @@ class Parqr(object):
         # Return post id, subject, and score for the top N scores in the df
         top_posts = {}
         for pid in final_scores.index[:N]:
-            post = Post.objects.get(course_id=cid, post_id=pid)
+            post = course.get_item(
+                Key={
+                    'course_id': cid,
+                    'post_id': pid
+                }
+            ).get("Item")
+
             score = final_scores.loc[pid][0]
-            subject = post.subject
-            s_answer = True if post.s_answer != None else False
-            i_answer = True if post.i_answer != None else False
+            subject = post["subject"]
+            s_answer = True if post.get("s_answer") is not None else False
+            i_answer = True if post.get("i_answer") is not None else False
+
+            # the modified date
+            modified_date = str(post.get("created"))
+            num_unresolved_followups = post.get("num_unresolved_followups")
+            followups = post.get("followups")
+            num_followups = len(followups)
+            resolved = True if not num_unresolved_followups else False
 
             if score > SCORE_THRESHOLD:
                 top_posts[score] = {'pid': pid,
                                     'subject': subject,
                                     's_answer': s_answer,
-                                    'i_answer': i_answer}
+                                    'i_answer': i_answer,
+                                    'feedback': False,
+                                    'modified_date': modified_date,
+                                    'num_followups': num_followups,
+                                    'resolved': resolved}
 
         return top_posts
 
@@ -126,23 +161,25 @@ class Parqr(object):
                 on the valid pids of the course and each column representing
                 the score from each model
         """
-
         # Retrieve all the valid pids for a course since some pids are private
         # or deleted
-        all_pids = self._get_all_pids(cid)
-        tfidf_scores = pd.DataFrame(index=all_pids)
+        # all_pids = self._get_all_pids(cid, course)
         now = datetime.now()
         delay = timedelta(seconds=COURSE_MODEL_RELOAD_DELAY_S)
 
         # If the models for a course are not loaded into memory or it has been
         # some time since they were loaded last, reload them.
+        start = time.time()
         if cid not in self._course_dict:
             self._load_all_models(cid)
         elif now - self._course_dict[cid].last_load > delay:
-            logger.info('Reloading models for cid: {}'.format(cid))
+            print('Reloading models for cid: {}'.format(cid))
             self._load_all_models(cid)
+        print("Loaded models in {} ms".format((time.time() - start) * 100))
 
         course_info = self._course_dict[cid]
+        all_pids = course_info.models[TFIDF_MODELS.POST].post_ids
+        tfidf_scores = pd.DataFrame(index=all_pids)
         for model_name in TFIDF_MODELS:
             # Retrieve the appropriate vectorizer for this course, a matrix
             # where each row represents a post in the course in vector form.
@@ -187,7 +224,7 @@ class Parqr(object):
         Args:
             cid (str): The course id of interest
         """
-        logger.info("Loading all models for cid: {}".format(cid))
+        print("Loading all models for cid: {}".format(cid))
 
         if cid in self._course_dict:
             course_info = self._course_dict[cid]
@@ -204,7 +241,7 @@ class Parqr(object):
         if cid not in self._course_dict:
             self._course_dict[cid] = course_info
 
-    def _get_all_pids(self, cid):
+    def _get_all_pids(self, cid, course):
         """Retrives the valid post_ids for a particular course.
 
         Not all post_ids are valid in a given course since the scraper ignores
@@ -212,12 +249,52 @@ class Parqr(object):
 
         Args:
             cid (str): The course id of interest
+            course : The DDB reference
 
         Returns:
             list: A list of all the valid post_ids
         """
+        response = course.scan()
+        posts = response['Items']
+
+        while 'LastEvaluatedKey' in response:
+            response = course.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
+            posts.extend(response['Items'])
+
         pids = []
-        for post in Post.objects(course_id=cid):
-            pids.append(post.post_id)
+        for post in posts:
+            pids.append(post["post_id"])
 
         return pids
+
+
+def lambda_handler(event, context):
+    print(event, context)
+    parqr = Parqr()
+    body = json.loads(event.get("body"))
+    course_id = event['pathParameters'].get("course_id")
+    query = body["query"]
+    N = int(body.get("N")) if body.get("N") else 5
+    recs = parqr.get_recommendations(course_id, query, N)
+    print(recs)
+
+    if random.random() < 0.1:
+        feedback_payload = {
+            "source": "query",
+            "course_id": course_id,
+            "query": query,
+            "similar_posts": recs
+        }
+
+        response = lambda_client.invoke(
+            FunctionName='Feedbacks',
+            InvocationType='RequestResponse',
+            Payload=bytes(json.dumps(feedback_payload), encoding='utf8')
+        )
+
+        recs = json.loads(response['Payload'].read().decode("utf-8")).get("similar_posts")
+
+    return {
+        'statusCode': '200',
+        'body': json.dumps(recs)
+    }

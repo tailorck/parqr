@@ -1,59 +1,11 @@
-version: '2'
+version: '3'
 services:
-    queue:
-        image: redis:latest
-        command: redis-server --save "" --appendonly no
-        ports:
-            - "6379:6379"
-
-    db:
-        image: mongo:latest
-        environment:
-            - MONGO_PORT_27017_TCP_ADDR=0.0.0.0
-        depends_on:
-            - queue
-        ports:
-            - '27017:27017'
-        volumes:
-            - /data/db/:/data/db
-
     app:
-        command: gunicorn -t 90 --bind=0.0.0.0 app.api:app --workers=8
+        command: gunicorn -t 90 --bind=0.0.0.0 app.api:app --workers=4
         environment:
             - FLASK_CONF=production
         build:
             context: .
             dockerfile: Dockerfile
-        links:
-            - queue:redishost
-            - db:mongo
-        depends_on:
-            - db
         ports:
             - "8000:8000"
-
-    worker:
-        command: rqworker --url redis://redishost:6379/0
-        environment:
-            - FLASK_CONF=production
-        build:
-            context: .
-            dockerfile: Dockerfile
-        links:
-          - queue:redishost
-          - db:mongo
-        depends_on:
-            - app
-
-    scheduler:
-        command: rqscheduler --host redishost --port 6379 --db 0
-        environment:
-            - FLASK_CONF=production
-        build:
-            context: .
-            dockerfile: Dockerfile
-        links:
-          - queue:redishost
-          - db:mongo
-        depends_on:
-            - app
