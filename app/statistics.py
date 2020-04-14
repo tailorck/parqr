@@ -95,12 +95,17 @@ def get_inst_att_needed_posts(course_id, number_of_posts):
     posts = get_posts_table()
 
     DATE_CUTOFF = int(datetime.timestamp(datetime.now() + timedelta(days=-21)))
-    filtered_posts = posts.scan(
+    response = posts.scan(
         FilterExpression=Attr("course_id").eq(course_id) &
                          Attr("post_type").eq("question") &
                          ~Attr("tags").contains("instructor-question") &
                          Attr("created").gt(DATE_CUTOFF)
-    ).get("Items")
+    )
+    filtered_posts = response.get("Items")
+
+    while 'LastEvaluatedKey' in response:
+        response = posts.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
+        filtered_posts.extend(response['Items'])
 
     def _create_top_post(post):
         post_data = {"title": post["subject"], "post_id": int(post["post_id"])}
@@ -182,6 +187,7 @@ def get_stud_att_needed_posts(course_id, num_posts):
     ).get("Items")
 
     if len(filtered_posts) == 0:
+        print("No posts found since {} for course_id {}".format(max_age_date, course_id))
         return []
 
     def _create_top_post(post):
