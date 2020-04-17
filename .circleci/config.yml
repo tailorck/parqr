@@ -2,15 +2,15 @@
 #
 # Check https://circleci.com/docs/2.0/language-python/ for more details
 #
-version: 2
+version: 2.1
+orbs:
+    newman: postman/newman@0.0.2
 jobs:
-  build:
+  unit_test:
     docker:
       # specify the version you desire here
       # use `-browsers` prefix for selenium tests, e.g. `3.6.1-browsers`
       - image: circleci/python:3.6
-        environment:
-          FLASK_CONF: testing
 
     working_directory: ~/repo
 
@@ -53,4 +53,19 @@ jobs:
       - store_artifacts:
           path: test-reports
           destination: test-reports
-          
+
+  integration_test:
+    executor: newman/postman-newman-docker
+
+    steps:
+      - checkout
+
+      - newman/newman-run:
+          collection: ./postman_collection.json
+
+workflows:
+  version: 2.1
+  run_tests:
+    jobs:
+      - unit_test
+      - integration_test
