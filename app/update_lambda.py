@@ -16,7 +16,7 @@ def lambda_handler(event, context):
 
     for function in function_names:
         s3_key = event.get("Records")[0].get("s3").get("object").get("key")
-        if "develop" in s3_key:
+        if "master" in s3_key:
             if function == "Parqr-API":
                 client.update_function_configuration(
                     FunctionName=function,

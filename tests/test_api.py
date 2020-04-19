@@ -119,7 +119,7 @@ class TestStudentRecommendationAPI(unittest.TestCase):
             from app import api
             self.test_app = api.app.test_client()
 
-        self.res_data = b'{"message": "success", "recommendations": [{"title": "oh henlo", "post_id": 18, "properties": ["0 followups", "2 views", "Tags - hw4, student, unanswered"]}]}\n'
+        self.res_data = b'{"message": "success", "recommendations": [{"post_id": 18, "subject": "oh henlo", "date_modified": 1581482976, "followups": 0, "views": 2, "tags": ["hw4", "student", "unanswered"], "i_answer": false, "s_answer": false, "resolved": true}]}\n'
 
     @mock.patch('app.statistics.get_posts_table', side_effect=mock_get_posts_table)
     @mock.patch('app.statistics.is_course_id_valid', side_effect=mock_is_course_id_valid)
