@@ -147,6 +147,7 @@ def get_inst_att_needed_posts(course_id, number_of_posts):
     return list(map(_create_top_post, filtered_posts[:n_posts]))
 
 
+#TODO: Should probably move this to the resource class
 def get_stud_att_needed_posts(course_id, num_posts):
     """Retrieves the top student attention needed posts, for a specific course,
     with the search time being [starting_time, now). The posts from the past
@@ -207,7 +208,6 @@ def get_stud_att_needed_posts(course_id, num_posts):
             "s_answer": True if post.get("s_answer") is not None else False,
             "resolved": True if int(post.get("num_unresolved_followups")) == 0 else False
         }
-
         return post_data
 
     def _posts_bqs_to_df(bqs):
