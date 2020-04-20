@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+{% import "bootstrap/wtf.html" as wtf %}
+<html>
+  <head>
+    <title>Flask Intro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="static/css/parqr.css">
+    <link rel="stylesheet" type="text/css" href="static/css/table.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/dt-1.10.20/datatables.min.css"/>
+    <script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.10.20/datatables.min.js"></script>
+    <script type="text/javascript" src="static/js/usertable.js"></script>
+
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+      <a class="navbar-brand" href="#">
+        <img src="https://lh3.googleusercontent.com/QtC4556ZbG2ds-1_xFGrNbvD6Yh59TZcqiLo71pHVmjvYdMBeLkDXh1fr_RwVz1MaKwA0a3n=w128-h128-e365" width="30" height="30" class="d-inline-block align-top" alt="">
+        PARQR Management System
+      </a>
+
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item active">
+            <a class="nav-link" href="/parqr">Home <span class="sr-only">(current)</span></a>
+          </li>
+          <li class="nav-item active">
+            <a class="nav-link" href="/user">User</a>
+          </li>
+        </ul>
+      </div>
+      <div class="navbar-collapse collapse w-100 order-3 dual-collapse2">
+        <ul class="navbar-nav ml-auto">
+            <li class="nav-item">
+                <a class="nav-link" href="/logout">{{ current_user.username }} Logout</a>
+            </li>
+        </ul>
+      </div>
+    </nav>
+
+<!--     <dir class="container">
+      <div class="card" >
+        <div class="card-header">
+          Current Users
+        </div>
+        <ul class="list-group list-group-flush">
+          {% for regristeredUser in regristeredUsers %}
+            <li class="list-group-item">{{regristeredUser}}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </dir> -->
+
+    <div class="tb1" style="display: inline-block; margin: 30px 30px 30px 80px; width: 50%; vertical-align: top;">
+        <table id="dtBasicExample" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">
+
+        <thead>
+          <tr>
+            <th scope="col" style="width: 10%">#</th>
+            <th scope="col" style="width: 50%">Current Users</th>
+            <th scope="col" style="width: 10%">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for regristeredUser in regristeredUsers %}
+          <tr>
+              <td>{{loop.index}}</td>
+              <td>{{ regristeredUser }}</td>
+              {% if regristeredUser != 'admin12345'%}
+              <td><button type="button" class="btn btn-outline-danger" style="align-items: center; margin-left: 20px">Delete</button></td>
+              {% else %}
+              <td></td>
+              {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+       {% if alert %}
+          <p class="alert alert-primary" role="alert">{{ alert }}</p>
+      {% endif %}
+  </div> 
+    
+    
+
+  {% block content1 %}
+  <div class="tb2" style="display: inline-block; margin-top: 30px; margin-left: 30px; margin-right: 30px; width: 30%; vertical-align: top">
+
+    <form class="form-signin" method="POST" action="/user">
+      <h2 class="form-signin-heading">Add a User</h2>
+      {{ form1.hidden_tag() }}
+      {{ wtf.form_field(form1.username) }}
+      {{ wtf.form_field(form1.password) }}
+      <button class="btn btn-lg btn-primary btn-block" type="submit">Add a User</button>
+    </form>
+      {% if message1 %}
+          <p class="alert alert-primary" role="alert">{{ message1 }}</p>
+      {% endif %}
+  </div> <!-- /container -->
+  {% endblock %}
+
+<!--   {% block content2 %}
+  <div class="tb3" style="display: inline-block; margin-top: 30px; width: 20%; vertical-align: top">
+
+    <form class="form-signin" method="POST" action="/user">
+      <h2 class="form-signin-heading">Delete a User</h2>
+      {{ form2.hidden_tag() }}
+      {{ wtf.form_field(form2.username) }}
+      <button class="btn btn-lg btn-primary btn-block" type="submit">Delete a User</button>
+    </form>
+      {% if message2 %}
+          <p class="alert alert-primary" role="alert">{{ message2 }}</p>
+      {% endif %}
+  </div> 
+  {% endblock %}
+
+   -->
+
+
+  </body>
+</html>

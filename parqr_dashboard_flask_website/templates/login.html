@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+{% import "bootstrap/wtf.html" as wtf %}
+<html>
+  <head>
+    <title>Flask Intro - login page</title>
+    <link rel="stylesheet" type="text/css" href="static/css/login.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"></script>  
+  </head>
+  <body>
+<!--     <div class="wrapper">
+      <br>
+      <form class="form-signin" action="" method="post">
+        <img aria-hidden="true" src="https://lh3.googleusercontent.com/QtC4556ZbG2ds-1_xFGrNbvD6Yh59TZcqiLo71pHVmjvYdMBeLkDXh1fr_RwVz1MaKwA0a3n=w128-h128-e365" class="e-f-s" style=" width:60px; height:60px;">
+        <span class="sign">PARQR</span>
+        <h4 class="form-signin-heading">Please login</h4>
+        <input class="form-control" type="text" placeholder="Username" name="username" value="{{
+          request.form.username }}">
+         <input class="form-control" type="password" placeholder="Password" name="password" value="{{
+          request.form.password }}">
+        <button class="btn btn-lg btn-primary btn-block" type="submit">Login</button>
+        {% if error %}
+          <p class="error"><strong>Error:</strong> {{ error }}</p>
+        {% endif %}
+      </form> -->
+<!--     </div> /container
+ -->      
+    {% block content %}
+    <div class="container">
+
+      <form class="form-signin" method="POST" action="/login">
+      <img aria-hidden="true" src="https://lh3.googleusercontent.com/QtC4556ZbG2ds-1_xFGrNbvD6Yh59TZcqiLo71pHVmjvYdMBeLkDXh1fr_RwVz1MaKwA0a3n=w128-h128-e365" class="e-f-s" style=" width:60px; height:60px;">
+        <h2 class="form-signin-heading">Please sign in</h2>
+        {{ form.hidden_tag() }}
+        {{ wtf.form_field(form.username) }}
+        {{ wtf.form_field(form.password) }}
+        {{ wtf.form_field(form.remember) }}
+        <button class="btn btn-lg btn-primary btn-block" type="submit">Sign in</button>
+        {% if message %}
+          <p class="alert alert-danger" role="alert">{{ message }}</p>
+        {% endif %}
+      </form>
+    {% endblock %}
+
+    </div>
+  </body>
+</html>
