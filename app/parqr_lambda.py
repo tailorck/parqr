@@ -110,7 +110,7 @@ class Parqr(object):
         final_scores.sort_values(by=['scores'], ascending=False, inplace=True)
 
         # Return post id, subject, and score for the top N scores in the df
-        top_posts = {}
+        top_posts = []
         for pid in final_scores.index[:N]:
             post = course.get_item(
                 Key={
@@ -132,14 +132,17 @@ class Parqr(object):
             resolved = True if not num_unresolved_followups else False
 
             if score > SCORE_THRESHOLD:
-                top_posts[score] = {'pid': pid,
-                                    'subject': subject,
-                                    's_answer': s_answer,
-                                    'i_answer': i_answer,
-                                    'feedback': False,
-                                    'modified_date': modified_date,
-                                    'num_followups': num_followups,
-                                    'resolved': resolved}
+                top_posts.append({
+                    'pid': pid,
+                    'score': score,
+                    'subject': subject,
+                    's_answer': s_answer,
+                    'i_answer': i_answer,
+                    'feedback': False,
+                    'modified_date': modified_date,
+                    'num_followups': num_followups,
+                    'resolved': resolved
+                })
 
         return top_posts
 
@@ -274,7 +277,7 @@ def lambda_handler(event, context):
     body = json.loads(event.get("body"))
     course_id = event['pathParameters'].get("course_id")
     query = body["query"]
-    N = int(body.get("N")) if body.get("N") else 5
+    N = int(body.get("N", 5))
     recs = parqr.get_recommendations(course_id, query, N)
     print(recs)
 

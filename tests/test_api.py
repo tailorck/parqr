@@ -2,6 +2,7 @@ import unittest
 import mock
 import json
 from decimal import Decimal
+import pytest
 
 
 class TestHelloWorldAPI(unittest.TestCase):
