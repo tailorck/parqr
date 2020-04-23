@@ -88,7 +88,7 @@ class TestActiveCourseAPI(unittest.TestCase):
         assert res.data == self.res_data
 
 
-def mock_get_posts_table():
+def mock_get_posts_table(course_id):
     mock_boto3 = mock.Mock()
     mock_boto3.scan.return_value = {
         "Items": [
