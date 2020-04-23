@@ -47,21 +47,13 @@ def get_course_table(course_id):
                     {
                         'AttributeName': 'post_id',
                         'KeyType': 'HASH',
-                    },
-                    {
-                        'AttributeName': 'created',
-                        'KeyType': 'RANGE',
-                    },
+                    }
                 ],
                 AttributeDefinitions=[
                     {
                         'AttributeName': 'post_id',
                         'AttributeType': 'N',
-                    },
-                    {
-                        'AttributeName': 'created',
-                        'AttributeType': 'N',
-                    },
+                    }
                 ],
                 ProvisionedThroughput={
                     'ReadCapacityUnits': 5,
@@ -161,11 +153,9 @@ class Parser(object):
             if post['status'] == 'deleted' or post['status'] == 'private':
                 print("Deleted post with pid {} and course id {} from Posts".format(pid, course_id))
                 all_pids.remove(pid)
-                created = datetime.strptime(post['created'], DATETIME_FORMAT)
                 posts.delete_item(
                     Key={
                         "post_id": pid,
-                        "created": int(created.timestamp())
                     }
                 )
 
@@ -223,12 +213,9 @@ class Parser(object):
         for pid in deleted_pids:
             all_pids.remove(pid)
             print("Deleted post with pid {} and course id {} from Posts".format(pid, course_id))
-            post = network.get_post(pid)
-            created = datetime.strptime(post['created'], DATETIME_FORMAT)
             posts.delete_item(
                 Key={
                     "post_id": pid,
-                    "created": int(created.timestamp())
                 }
             )
             train = True
