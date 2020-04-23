@@ -10,9 +10,9 @@ from app.exception import InvalidUsage
 from app.constants import POST_AGE_SIGMOID_OFFSET, POST_MAX_AGE_DAYS
 
 
-def get_posts_table():
+def get_posts_table(course_id):
     dynamodb = boto3.resource('dynamodb')
-    return dynamodb.Table('Posts')
+    return dynamodb.Table(course_id)
 
 
 def get_courses_table():
@@ -92,19 +92,23 @@ def get_inst_att_needed_posts(course_id, number_of_posts):
     if not is_valid:
         raise InvalidUsage('Invalid course id provided')
 
-    posts = get_posts_table()
+    posts = get_posts_table(course_id)
 
     DATE_CUTOFF = int(datetime.timestamp(datetime.now() + timedelta(days=-21)))
     response = posts.scan(
-        FilterExpression=Attr("course_id").eq(course_id) &
-                         Attr("post_type").eq("question") &
+        FilterExpression=Attr("post_type").eq("question") &
                          ~Attr("tags").contains("instructor-question") &
                          Attr("created").gt(DATE_CUTOFF)
     )
     filtered_posts = response.get("Items")
 
     while 'LastEvaluatedKey' in response:
-        response = posts.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
+        response = posts.scan(
+            FilterExpression=Attr("post_type").eq("question") &
+                             ~Attr("tags").contains("instructor-question") &
+                             Attr("created").gt(DATE_CUTOFF),
+            ExclusiveStartKey=response['LastEvaluatedKey']
+        )
         filtered_posts.extend(response['Items'])
 
     def _create_top_post(post):
@@ -176,20 +180,23 @@ def get_stud_att_needed_posts(course_id, num_posts):
     if not is_valid:
         raise InvalidUsage('Invalid course id provided')
 
-    posts = get_posts_table()
+    posts = get_posts_table(course_id)
 
     max_age_date = int(datetime.timestamp(now - timedelta(hours=POST_MAX_AGE_DAYS * 24)))
     print(max_age_date)
     response = posts.scan(
-        FilterExpression=Attr("course_id").eq(course_id) &
-                         Attr("post_type").eq("question") &
+        FilterExpression=Attr("post_type").eq("question") &
                          ~Attr("tags").contains("instructor-question") &
                          Attr("created").gt(max_age_date)
     )
     filtered_posts = response.get("Items")
 
     while 'LastEvaluatedKey' in response:
-        response = posts.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
+        response = posts.scan(
+            FilterExpression=Attr("post_type").eq("question") &
+                             ~Attr("tags").contains("instructor-question") &
+                             Attr("created").gt(max_age_date),
+            ExclusiveStartKey=response['LastEvaluatedKey'])
         filtered_posts.extend(response['Items'])
 
     if len(filtered_posts) == 0:

@@ -31,6 +31,47 @@ def get_secret(secret_name):
     return json.loads(response["SecretString"])
 
 
+def get_course_table(course_id):
+    dynamodb = boto3.client("dynamodb")
+    try:
+        # Check if course table exists
+        dynamodb.describe_table(
+            TableName=course_id
+        )
+    except ClientError as ce:
+        if ce.response.get('Error').get('Code') == 'ResourceNotFoundException':
+            # If course table doesn't exist, make a new table
+            dynamodb.create_table(
+                TableName=course_id,
+                KeySchema=[
+                    {
+                        'AttributeName': 'post_id',
+                        'KeyType': 'HASH',
+                    },
+                    {
+                        'AttributeName': 'created',
+                        'KeyType': 'RANGE',
+                    },
+                ],
+                AttributeDefinitions=[
+                    {
+                        'AttributeName': 'post_id',
+                        'KeyType': 'N',
+                    },
+                    {
+                        'AttributeName': 'created',
+                        'KeyType': 'N',
+                    },
+                ],
+            )
+            print("Creating new table for course {}".format(course_id))
+        else:
+            raise ce
+
+    course_table = boto3.resource(course_id).wait_until_exists()
+    return course_table
+
+
 class Parser(object):
 
     def __init__(self):
@@ -78,39 +119,28 @@ class Parser(object):
         train = False
 
         courses = dynamodb_resource.Table("Courses")
-        new_last_modified = int(time.time() * 1000)
         course_info = courses.update_item(
             Key={
                 'course_id': course_id
-            },
-            UpdateExpression='SET #mod = :mod',
-            ExpressionAttributeNames={
-                '#mod': 'last_modified'
-            },
-            ExpressionAttributeValues={
-                ':mod': new_last_modified
             },
             ReturnValues='ALL_OLD'
         ).get('Attributes')
 
         if course_info is None:
-            last_modified = 0
-            previous_all_pids = []
+            previous_all_pids = set()
         else:
-            last_modified = int(course_info.get('last_modified'))
-            previous_all_pids = [int(i) for i in course_info.get('all_pids')]
+            previous_all_pids = set([int(i) for i in course_info.get('all_pids')])
 
         try:
-            feed = network.get_feed()['feed']
-            pids = [post['nr'] for post in feed if post['m'] > last_modified]
-            all_pids = [post['nr'] for post in feed]
+            feed = network.get_feed(limit=99999)['feed']
+            all_pids = set([post['nr'] for post in feed])
+            pids = all_pids.difference(previous_all_pids)
         except KeyError:
-
             print('Unable to get feed for course_id: {}'
                   .format(course_id))
             return False, None
 
-        posts = dynamodb_resource.Table("Posts")
+        posts = get_course_table(course_id)
 
         current_pids = set()
         start_time = time.time()
@@ -119,14 +149,15 @@ class Parser(object):
             try:
                 post = network.get_post(pid)
             except RequestError:
+                all_pids.remove(pid)
                 continue
 
             # Skip deleted and private posts
             if post['status'] == 'deleted' or post['status'] == 'private':
                 print("Deleted post with pid {} and course id {} from Posts".format(pid, course_id))
+                all_pids.remove(pid)
                 posts.delete_item(
                     Key={
-                        "course_id": course_id,
                         "post_id": pid
                     }
                 )
@@ -156,7 +187,6 @@ class Parser(object):
 
             # insert post and add to course's post list
             item = {
-                "course_id": course_id,
                 "post_id": pid,
                 "created": int(created.timestamp()),
                 "subject": subject,
@@ -179,14 +209,15 @@ class Parser(object):
                 print(pid, item)
                 print(e)
                 current_pids.remove(pid)
+                all_pids.remove(pid)
                 continue
 
         deleted_pids = [pid for pid in previous_all_pids if pid not in all_pids]
         for pid in deleted_pids:
+            all_pids.remove(pid)
             print("Deleted post with pid {} and course id {} from Posts".format(pid, course_id))
             posts.delete_item(
                 Key={
-                    "course_id": course_id,
                     "post_id": pid
                 }
             )

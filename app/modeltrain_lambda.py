@@ -2,7 +2,6 @@ import warnings
 
 import time
 import boto3
-from boto3.dynamodb.conditions import Key, Attr
 import numpy as np
 import simplejson as json
 from sklearn.feature_extraction.text import TfidfVectorizer, ENGLISH_STOP_WORDS
@@ -18,10 +17,10 @@ lambda_client = boto3.client('lambda')
 
 class ModelTrain(object):
 
-    def __init__(self):
+    def __init__(self, course_id):
         """ModelTrain constructor"""
         self.model_cache = ModelCache()
-        self.posts = boto3.resource('dynamodb').Table("Posts")
+        self.posts = boto3.resource('dynamodb').Table(course_id)
 
     def persist_models(self, cid):
         """Vectorizes the information in database into multiple TF-IDF models.
@@ -51,7 +50,7 @@ class ModelTrain(object):
             model_name (str): The name of the model dictated by the
                 TFIDF_MODELS enum
         """
-        words, pid_list = self._get_words_for_model(cid, model_name)
+        words, pid_list = self._get_words_for_model(model_name)
         # print(words, pid_list, words.size)
         if words.size != 0:
             vectorizer = TfidfVectorizer(analyzer='word',
@@ -63,7 +62,7 @@ class ModelTrain(object):
             self.model_cache.store_matrix(cid, model_name, matrix)
             self.model_cache.store_pid_list(cid, model_name, pid_list)
 
-    def _get_words_for_model(self, cid, model_name):
+    def _get_words_for_model(self, model_name):
         """Retrieves the appropriate text for a given course and model name.
 
         Currently there are 4 options for model_names, so the text retrieved
@@ -74,7 +73,6 @@ class ModelTrain(object):
             - The words in the post followups
 
         Args:
-            cid (str): The course id of the course in interest
             model_name (str): The name of the model dictated by the
                 TFIDF_MODELS enum
 
@@ -84,7 +82,7 @@ class ModelTrain(object):
                 model_pid_list (list): The pids associated with each string in
                     the words list
         """
-        posts = self._get_all_posts(cid)
+        posts = self._get_all_posts()
 
         payload = {
             "source": "ModelTrain",
@@ -107,23 +105,17 @@ class ModelTrain(object):
 
         return np.array(words), np.array(model_pid_list)
 
-    def _get_all_posts(self, cid: str) -> list:
+    def _get_all_posts(self) -> list:
         """Retrives all posts for a specific course
-
-        Args:
-            cid: The course id to retrieve posts for
 
         Returns: a list of post objects
 
         """
-        response = self.posts.scan(
-            FilterExpression=Attr('course_id').eq(cid)
-        )
+        response = self.posts.scan()
         posts = response['Items']
 
         while 'LastEvaluatedKey' in response:
             response = self.posts.scan(
-                FilterExpression=Attr('course_id').eq(cid),
                 ExclusiveStartKey=response['LastEvaluatedKey']
             )
             posts.extend(response['Items'])
@@ -134,10 +126,8 @@ class ModelTrain(object):
 
 def lambda_handler(event, context):
     print(event, context)
-    mt = ModelTrain()
     if event.get("course_ids"):
         for course_id in event["course_ids"]:
+            mt = ModelTrain(course_id)
             mt.persist_models(course_id)
             print("Course with course_id {}, persisted".format(course_id))
-    # TODO: input from parser
-

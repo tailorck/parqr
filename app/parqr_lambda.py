@@ -19,6 +19,11 @@ dynamodb_resource = boto3.resource('dynamodb')
 lambda_client = boto3.client('lambda')
 
 
+def get_posts_table(course_id):
+    dynamodb = boto3.resource('dynamodb')
+    return dynamodb.Table(course_id)
+
+
 class ModelInfo(object):
 
     def __init__(self, model_name, vectorizer=None, matrix=None,
@@ -83,7 +88,7 @@ class Parqr(object):
             scores as the keys
         """
         # Connect to DDB
-        course = dynamodb_resource.Table("Posts")
+        course = get_posts_table(cid)
 
         payload = {
             "source": "Query",
@@ -114,7 +119,6 @@ class Parqr(object):
         for pid in final_scores.index[:N]:
             post = course.get_item(
                 Key={
-                    'course_id': cid,
                     'post_id': pid
                 }
             ).get("Item")
