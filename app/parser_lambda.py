@@ -46,21 +46,21 @@ def get_course_table(course_id):
                 KeySchema=[
                     {
                         'AttributeName': 'post_id',
-                        'KeyType': 'HASH',
+                        'AttributeType': 'HASH',
                     },
                     {
                         'AttributeName': 'created',
-                        'KeyType': 'RANGE',
+                        'AttributeType': 'RANGE',
                     },
                 ],
                 AttributeDefinitions=[
                     {
                         'AttributeName': 'post_id',
-                        'KeyType': 'N',
+                        'AttributeType': 'N',
                     },
                     {
                         'AttributeName': 'created',
-                        'KeyType': 'N',
+                        'AttributeType': 'N',
                     },
                 ],
             )
