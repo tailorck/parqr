@@ -46,11 +46,11 @@ def get_course_table(course_id):
                 KeySchema=[
                     {
                         'AttributeName': 'post_id',
-                        'AttributeType': 'HASH',
+                        'KeyType': 'HASH',
                     },
                     {
                         'AttributeName': 'created',
-                        'AttributeType': 'RANGE',
+                        'KeyType': 'RANGE',
                     },
                 ],
                 AttributeDefinitions=[
@@ -63,12 +63,17 @@ def get_course_table(course_id):
                         'AttributeType': 'N',
                     },
                 ],
+                ProvisionedThroughput={
+                    'ReadCapacityUnits': 5,
+                    'WriteCapacityUnits': 5
+                },
             )
             print("Creating new table for course {}".format(course_id))
         else:
             raise ce
 
-    course_table = boto3.resource(course_id).wait_until_exists()
+    course_table = boto3.resource("dynamodb").Table(course_id)
+    course_table.wait_until_exists()
     return course_table
 
 
@@ -156,9 +161,11 @@ class Parser(object):
             if post['status'] == 'deleted' or post['status'] == 'private':
                 print("Deleted post with pid {} and course id {} from Posts".format(pid, course_id))
                 all_pids.remove(pid)
+                created = datetime.strptime(post['created'], DATETIME_FORMAT)
                 posts.delete_item(
                     Key={
-                        "post_id": pid
+                        "post_id": pid,
+                        "created": int(created.timestamp())
                     }
                 )
 
@@ -212,13 +219,16 @@ class Parser(object):
                 all_pids.remove(pid)
                 continue
 
-        deleted_pids = [pid for pid in previous_all_pids if pid not in all_pids]
+        deleted_pids = previous_all_pids - all_pids
         for pid in deleted_pids:
             all_pids.remove(pid)
             print("Deleted post with pid {} and course id {} from Posts".format(pid, course_id))
+            post = network.get_post(pid)
+            created = datetime.strptime(post['created'], DATETIME_FORMAT)
             posts.delete_item(
                 Key={
-                    "post_id": pid
+                    "post_id": pid,
+                    "created": int(created.timestamp())
                 }
             )
             train = True

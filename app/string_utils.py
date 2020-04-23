@@ -63,21 +63,21 @@ def lambda_handler(event, context):
 
         for post in posts:
             if model_name == "POST":
-                clean_subject = spacy_clean(post["subject"])
-                clean_body = spacy_clean(post["body"])
-                tags = post["tags"]
+                clean_subject = spacy_clean(post.get("subject"))
+                clean_body = spacy_clean(post.get("body"))
+                tags = post.get("tags")
                 words.append(' '.join(clean_subject + clean_body + tags))
                 model_pid_list.append(post["post_id"])
             elif model_name == "I_ANSWER":
-                if post["i_answer"]:
+                if post.get("i_answer"):
                     words.append(' '.join(spacy_clean(post["i_answer"])))
                     model_pid_list.append(post["post_id"])
             elif model_name == "S_ANSWER":
-                if post["s_answer"]:
+                if post.get("s_answer"):
                     words.append(' '.join(spacy_clean(post["s_answer"])))
                     model_pid_list.append(post["post_id"])
             elif model_name == "FOLLOWUP":
-                if post["followups"] and len(post["followups"]) < 15:
+                if post.get("followups") and len(post["followups"]) < 15:
                     followup_str = stringify_followups(post["followups"])
                     words.append(' '.join(spacy_clean(followup_str)))
                     model_pid_list.append(post["post_id"])
