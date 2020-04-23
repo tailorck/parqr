@@ -88,7 +88,7 @@ class Parqr(object):
             scores as the keys
         """
         # Connect to DDB
-        course = get_posts_table(cid)
+        posts = get_posts_table(cid)
 
         payload = {
             "source": "Query",
@@ -117,7 +117,7 @@ class Parqr(object):
         # Return post id, subject, and score for the top N scores in the df
         top_posts = []
         for pid in final_scores.index[:N]:
-            post = course.get_item(
+            post = posts.get_item(
                 Key={
                     'post_id': pid
                 }
