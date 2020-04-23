@@ -208,6 +208,7 @@ def get_stud_att_needed_posts(course_id, num_posts):
             "s_answer": True if post.get("s_answer") is not None else False,
             "resolved": True if int(post.get("num_unresolved_followups")) == 0 else False
         }
+
         return post_data
 
     def _posts_bqs_to_df(bqs):

@@ -3,6 +3,7 @@ import time
 import base64
 
 import boto3
+from botocore.exceptions import ClientError
 import json
 
 from bs4 import BeautifulSoup
@@ -174,7 +175,7 @@ class Parser(object):
                     Item=cleaned_item
                 )
                 train = True
-            except posts.exceptions.ClientError as e:
+            except ClientError as e:
                 print(pid, item)
                 print(e)
                 current_pids.remove(pid)
