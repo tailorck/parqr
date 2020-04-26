@@ -94,6 +94,18 @@ class Parser(object):
         return [{'name': d['name'], 'course_id': d['nid'], 'term': d['term'],
                  'course_num': d['num']} for d in enrolled_courses]
 
+    def get_stats_for_enrolled_courses(self):
+        enrolled_courses = self.get_enrolled_courses()
+        for course in enrolled_courses:
+            network = self._piazza.network(course['course_id'])
+            try:
+                all_users = str(len(network.get_all_users()))
+            except RequestError:
+                all_users = "PARQR not an instructor in this class"
+            course["stats"]["num_students"] = all_users
+            course["stats"]["num_posts"] = network.get_statistics()['total']['questions']
+        return enrolled_courses
+
     def update_posts(self, course_id):
         """Creates a thread task to update all posts in a course
 
@@ -356,7 +368,7 @@ def lambda_handler(event, context):
         course_id = event.get("resources")[0].split('/')[1]
     elif event.get("source") == "parqr-api":
         parser = Parser()
-        return parser.get_enrolled_courses()
+        return parser.get_stats_for_enrolled_courses()
     else:
         course_id = event['course_id']
     print("Course ID: {}".format(course_id))
