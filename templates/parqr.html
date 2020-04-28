@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>PARQR</title>
+    <title>PARQR Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" type="text/css" href="static/css/parqr.css">
     <link rel="stylesheet" type="text/css" href="static/css/table.css">
@@ -47,6 +47,7 @@
                 <th scope="col">Course number</th>
                 <th scope="col">Course name</th>
                 <th scope="col">Course term</th>
+                <th scope="col">Status</th>
                 <th scope="col">Action</th>
               </tr>
             </thead>
@@ -59,19 +60,21 @@
                 <td>{{course_info[i]['name']}}</td>
                 <td>{{course_info[i]['term']}}</td>
                 {% if course_info[i]['active'] == false %}
-                  <!--Inactive-->
+                  <td><span class="badge badge-danger">Inactive</span></td>
                   <td>
                     <div>
+                      <div style=" display: inline-block">Inactive</div>
                       <div class="custom-control custom-switch" style=" display: inline-block">
                         <input type="checkbox" class="custom-control-input" id="customSwitch{{i}}">
-                        <label class="custom-control-label" for="customSwitch{{i}}">Inactive</label>
+                        <label class="custom-control-label" for="customSwitch{{i}}">Active</label>
                       </div>
                     </div>
                 </td>
                 {% else %}
-                  <!--Active-->
+                  <td><span class="badge badge-success">Active</span></td>
                   <td>
                     <div>
+                      <div style="display: inline-block">Inactive</div>
                       <div class="custom-control custom-switch" style="display: inline-block">
                         <input type="checkbox" class="custom-control-input" id="customSwitch{{i}}" checked>
                         <label class="custom-control-label" for="customSwitch{{i}}">Active</label>
@@ -80,7 +83,7 @@
                 </td>
                 {% endif %}
               </tr>
-            {% endfor %}
+            {% endfor %}              
             </tbody>
           </table>
         </div>
