@@ -13,6 +13,7 @@ from app.resources.query import InstructorQuery
 from app.resources.recommendations import StudentRecommendations, InstructorRecommendations
 from app.resources.user import Users
 from app.resources.feedback import Feedbacks
+from app.resources.dashboard import Dashboard
 from app.utils import create_app
 from app.exception import InvalidUsage, to_dict
 import awsgi
@@ -44,6 +45,8 @@ api.add_resource(Event, api_endpoint + 'event')
 api.add_resource(Feedbacks, api_endpoint + 'feedback')
 
 api.add_resource(Users, api_endpoint + 'users')
+
+api.add_resource(Dashboard, api_endpoint + 'dashboard')
 
 
 @app.errorhandler(404)
