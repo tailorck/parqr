@@ -10,13 +10,7 @@ $(document).ready(function(){
         var valueOfTd = $(this).find('td:first-child').text();
         var status = $(this).find('td:nth-child(5)').find('span');
         var toggleStatus = $('#' + toggleId).prop('checked');
-
-        console.log(toggleId);
-        console.log(valueOfTd); 
-        console.log(status);
-        console.log(toggleStatus);
-
-
+       
         $('#customSwitch0').on("click", function() {
     		$('#' + toggleId).prop('disabled', true);
         	if(toggleStatus === true) {
@@ -30,11 +24,9 @@ $(document).ready(function(){
 		        		status.removeClass('badge badge-success').addClass('badge badge-primary');
         				status.text('In progress');
 		        		window.location.reload();
-		        		console.log(result);
 		        	},
 		        	error: function (error) {
 		        		window.location.reload();
-		        		console.log(error);
 		        	}
 		        });
 
@@ -49,13 +41,11 @@ $(document).ready(function(){
 		        		status.removeClass('badge badge-danger').addClass('badge badge-primary');
         				status.text('In progress');
 		        		window.location.reload();
-		        		console.log(result);
 		        	},
 		        	error: function (error) {
 		        		status.removeClass('badge badge-danger').addClass('badge badge-primary');
         				status.text('In progress');
 		        		window.location.reload();
-		        		console.log(error);
 		        	}
 		        });
 
