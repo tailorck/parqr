@@ -96,14 +96,17 @@ class Parser(object):
 
     def get_stats_for_enrolled_courses(self):
         enrolled_courses = self.get_enrolled_courses()
+        courses = dynamodb_resource.Table("Courses")
         for course in enrolled_courses:
-            network = self._piazza.network(course['course_id'])
-            try:
-                all_users = str(len(network.get_all_users()))
-            except RequestError:
-                all_users = "PARQR not an instructor in this class"
-            course["stats"]["num_students"] = all_users
-            course["stats"]["num_posts"] = network.get_statistics()['total']['questions']
+            stats = courses.get_item(
+                Key={
+                    'course_id': course.get("course_id")
+                }
+            ).get('Item')
+            if stats:
+                course["stats"] = {}
+                course["stats"]["num_posts"] = stats.get("num_posts")
+                course["stats"]["num_students"] = stats.get("num_students")
         return enrolled_courses
 
     def update_posts(self, course_id):
@@ -135,7 +138,7 @@ class Parser(object):
             ReturnValues='ALL_OLD'
         ).get('Attributes')
 
-        if course_info is None:
+        if course_info is None or course_info.get('all_pids') is None:
             previous_all_pids = set()
         else:
             previous_all_pids = set([int(i) for i in course_info.get('all_pids')])
@@ -244,16 +247,23 @@ class Parser(object):
         time_elapsed = end_time - start_time
         print('Course updated. {} new posts scraped in: {:.2f}s'.format(len(current_pids), time_elapsed))
 
+        try:
+            all_users = str(len(network.get_all_users()))
+        except RequestError:
+            all_users = "N/A"
+
         courses.update_item(
             Key={
                 'course_id': course_id
             },
-            UpdateExpression='SET #pids = :pids',
+            UpdateExpression='SET #pids = :pids, num_students = :num_students, num_posts = :num_posts',
             ExpressionAttributeNames={
                 '#pids': 'all_pids'
             },
             ExpressionAttributeValues={
-                ':pids': all_pids
+                ':pids': all_pids,
+                ":num_students": all_users,
+                ":num_posts": str(network.get_statistics()['total']['questions'])
             }
         )
 
