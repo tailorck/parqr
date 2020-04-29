@@ -11,7 +11,8 @@ def lambda_handler(event, context):
         "Parqr-API",
         "Parqr",
         "Feedbacks",
-        "Parqr-Cleaner"
+        "Parqr-Cleaner",
+        "Dashboard"
     ]
 
     for function in function_names:
