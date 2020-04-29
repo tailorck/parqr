@@ -166,20 +166,12 @@ class ActiveCourse(Resource):
         # Create a lambda permission object so cloudwatch events can call the lambda
         lambda_client = get_boto3_lambda()
         # TODO: Inject new environment variable based upon master or dev
-        lambda_response = lambda_client.add_permission(
-            FunctionName='Parser:PROD',
-            StatementId="{}-{}".format(course_id, str(int(time.time()))),
-            Action='lambda:InvokeFunction',
-            Principal='events.amazonaws.com',
-            SourceArn=rule_arn
+        lambda_response = lambda_client.get_function(
+            FunctionName="Parser:PROD"
         )
-        if not lambda_response.get('Statement'):
-            print("Error creating lambda permission course")
-            print(lambda_response)
-            return {'message': 'Internal Server Error'}, 500
 
         # Set the lambda as the cloudwatch event target
-        lambda_arn = json.loads(lambda_response.get('Statement')).get('Resource')
+        lambda_arn = lambda_response.get('Configuration').get('FunctionArn')
         target_response = cloudwatch_events.put_targets(
             Rule=course_id,
             Targets=[
