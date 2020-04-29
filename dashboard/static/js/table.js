@@ -3,6 +3,22 @@ $(document).ready(function () {
   $('.dataTables_length').addClass('bs-select');
 });
 
+function getCookie(cname) {
+  var name = cname + "=";
+  var decodedCookie = decodeURIComponent(document.cookie);
+  var ca = decodedCookie.split(';');
+  for(var i = 0; i <ca.length; i++) {
+    var c = ca[i];
+    while (c.charAt(0) == ' ') {
+      c = c.substring(1);
+    }
+    if (c.indexOf(name) == 0) {
+      return c.substring(name.length, c.length);
+    }
+  }
+  return "";
+}
+
 
 $(document).ready(function(){
   $('#dtBasicExample tbody').on("click", 'tr',  function(){
@@ -15,7 +31,10 @@ $(document).ready(function(){
       $('#' + toggleSwitchId).prop('disabled', true);
       if(toggleStatus === true) {
         $.ajax({
-          url: "https://aws.parqr.io/dev/courses/" + course_id + "/active",
+          url: "https://aws.parqr.io/prod/courses/" + course_id + "/active",
+          headers: {
+            "id_token": getCookie("id_token")
+          },
           type: "DELETE",
           dataType: "json",
           contentType: 'application/json',
@@ -31,7 +50,10 @@ $(document).ready(function(){
 
       } else {
         $.ajax({
-          url: "https://aws.parqr.io/dev/courses/" + course_id + "/active",
+          url: "https://aws.parqr.io/prod/courses/" + course_id + "/active",
+          headers: {
+            "id_token": getCookie("id_token")
+          },
           type: "POST",
           dataType: "json",
           contentType: 'application/json',
