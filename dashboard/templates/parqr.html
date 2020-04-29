@@ -26,7 +26,7 @@
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav">
           <li class="nav-item active">
-            <a class="nav-link" href="/parqr">Home</a>
+            <a class="nav-link" href="/dashboard">Home</a>
           </li>
         </ul>
       </div>
@@ -48,7 +48,6 @@
                 <th scope="col">Course name</th>
                 <th scope="col">Course term</th>
                 <th scope="col">Status</th>
-                <th scope="col">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -60,24 +59,20 @@
                 <td>{{course_info[i]['name']}}</td>
                 <td>{{course_info[i]['term']}}</td>
                 {% if course_info[i]['active'] == false %}
-                  <td><span class="badge badge-danger">Inactive</span></td>
                   <td>
                     <div>
-                      <div style=" display: inline-block">Inactive</div>
                       <div class="custom-control custom-switch" style=" display: inline-block">
                         <input type="checkbox" class="custom-control-input" id="customSwitch{{i}}">
-                        <label class="custom-control-label" for="customSwitch{{i}}">Active</label>
+                        <label class="custom-control-label" for="customSwitch{{i}}">Disabled</label>
                       </div>
                     </div>
                 </td>
                 {% else %}
-                  <td><span class="badge badge-success">Active</span></td>
                   <td>
                     <div>
-                      <div style="display: inline-block">Inactive</div>
                       <div class="custom-control custom-switch" style="display: inline-block">
                         <input type="checkbox" class="custom-control-input" id="customSwitch{{i}}" checked>
-                        <label class="custom-control-label" for="customSwitch{{i}}">Active</label>
+                        <label class="custom-control-label" for="customSwitch{{i}}">Enabled</label>
                       </div>
                     </div>
                 </td>

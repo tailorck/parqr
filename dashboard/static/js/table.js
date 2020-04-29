@@ -1,5 +1,7 @@
 $(document).ready(function () {
-  $('#dtBasicExample').DataTable();
+  $('#dtBasicExample').DataTable({
+    "order": [[ 4, 'desc' ]]
+  });
   $('.dataTables_length').addClass('bs-select');
 });
 
@@ -39,8 +41,6 @@ $(document).ready(function(){
           dataType: "json",
           contentType: 'application/json',
           success: function (result) {
-            status_span.removeClass('badge badge-success').addClass('badge badge-primary');
-            status_span.text('In progress');
             window.location.reload();
           },
           error: function (error) {
@@ -58,13 +58,9 @@ $(document).ready(function(){
           dataType: "json",
           contentType: 'application/json',
           success: function (result) {
-            status_span.removeClass('badge badge-danger').addClass('badge badge-primary');
-            status_span.text('In progress');
             window.location.reload();
           },
           error: function (error) {
-            status_span.removeClass('badge badge-danger').addClass('badge badge-primary');
-            status_span.text('In progress');
             window.location.reload();
           }
         });
