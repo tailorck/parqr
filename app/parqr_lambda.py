@@ -15,13 +15,17 @@ from app.constants import (
     COURSE_MODEL_RELOAD_DELAY_S
 )
 
-dynamodb_resource = boto3.resource('dynamodb')
 lambda_client = boto3.client('lambda')
 
 
 def get_posts_table(course_id):
     dynamodb = boto3.resource('dynamodb')
     return dynamodb.Table(course_id)
+
+
+def get_ddb():
+    return boto3.client('dynamodb')
+
 
 
 class ModelInfo(object):
@@ -88,8 +92,6 @@ class Parqr(object):
             scores as the keys
         """
         # Connect to DDB
-        posts = get_posts_table(cid)
-
         payload = {
             "source": "Query",
             "query": query
@@ -101,7 +103,7 @@ class Parqr(object):
             InvocationType='RequestResponse',
             Payload=bytes(json.dumps(payload), encoding='utf8')
         )
-        print("Cleaned Query in {} ms".format((time.time() - start) * 100))
+        print("Cleaned Query in {} ms".format((time.time() - start) * 1000))
         # clean query vector
         clean_query = json.loads(response['Payload'].read().decode("utf-8")).get("clean_query")
 
@@ -114,28 +116,41 @@ class Parqr(object):
         final_scores.columns = ['scores']
         final_scores.sort_values(by=['scores'], ascending=False, inplace=True)
 
+        start_top_posts = time.time()
         # Return post id, subject, and score for the top N scores in the df
+        top_pids = [{"post_id": {'N': str(pid)}} for pid in final_scores.index[:N]
+                    if final_scores.loc[pid][0] > SCORE_THRESHOLD]
+
         top_posts = []
-        for pid in final_scores.index[:N]:
-            post = posts.get_item(
-                Key={
-                    'post_id': pid
+        get_items_time = 0
+        if len(top_pids) > 0:
+            start_get_items = time.time()
+            posts = get_ddb()
+            responses = posts.batch_get_item(
+                RequestItems={
+                    cid: {
+                        'Keys': top_pids
+                    }
                 }
-            ).get("Item")
+            ).get("Responses").get(cid)
+            get_items_time = (time.time() - start_get_items) * 1000
+            print("Retrieved {} Top Posts from DDB in {} ms"
+                  .format(len(responses), get_items_time))
 
-            score = final_scores.loc[pid][0]
-            subject = post["subject"]
-            s_answer = True if post.get("s_answer") is not None else False
-            i_answer = True if post.get("i_answer") is not None else False
+            for post in responses:
+                pid = int(post.get("post_id").get("N"))
+                score = final_scores.loc[pid][0]
+                subject = post.get("subject").get('S')
+                s_answer = True if post.get("s_answer") is not None else False
+                i_answer = True if post.get("i_answer") is not None else False
 
-            # the modified date
-            modified_date = str(post.get("created"))
-            num_unresolved_followups = post.get("num_unresolved_followups")
-            followups = post.get("followups")
-            num_followups = len(followups)
-            resolved = True if not num_unresolved_followups else False
+                # the modified date
+                modified_date = post.get("created").get('N')
+                num_unresolved_followups = post.get("num_unresolved_followups").get('N')
+                followups = post.get("followups").get('L')
+                num_followups = len(followups)
+                resolved = True if not num_unresolved_followups else False
 
-            if score > SCORE_THRESHOLD:
                 top_posts.append({
                     'pid': pid,
                     'score': score,
@@ -147,7 +162,8 @@ class Parqr(object):
                     'num_followups': num_followups,
                     'resolved': resolved
                 })
-
+        print("Generated {} Top Posts in {} ms"
+              .format(len(top_posts), (time.time() - start_top_posts) * 1000 - get_items_time))
         return top_posts
 
     def _get_tfidf_recommendations(self, cid, query, N):
@@ -182,8 +198,9 @@ class Parqr(object):
         elif now - self._course_dict[cid].last_load > delay:
             print('Reloading models for cid: {}'.format(cid))
             self._load_all_models(cid)
-        print("Loaded models in {} ms".format((time.time() - start) * 100))
+        print("Loaded models in {} ms".format((time.time() - start) * 1000))
 
+        start = time.time()
         course_info = self._course_dict[cid]
         all_pids = course_info.models[TFIDF_MODELS.POST].post_ids
         tfidf_scores = pd.DataFrame(index=all_pids)
@@ -222,6 +239,7 @@ class Parqr(object):
             tfidf_scores.loc[post_ids, model_name] = scores
 
         tfidf_scores.fillna(0, inplace=True)
+        print("Generated TF-IDF Scores in {} ms".format((time.time() - start) * 1000))
         return tfidf_scores
 
     def _load_all_models(self, cid):
@@ -248,36 +266,13 @@ class Parqr(object):
         if cid not in self._course_dict:
             self._course_dict[cid] = course_info
 
-    def _get_all_pids(self, cid, course):
-        """Retrives the valid post_ids for a particular course.
-
-        Not all post_ids are valid in a given course since the scraper ignores
-        deleted posts and private posts.
-
-        Args:
-            cid (str): The course id of interest
-            course : The DDB reference
-
-        Returns:
-            list: A list of all the valid post_ids
-        """
-        response = course.scan()
-        posts = response['Items']
-
-        while 'LastEvaluatedKey' in response:
-            response = course.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
-            posts.extend(response['Items'])
-
-        pids = []
-        for post in posts:
-            pids.append(post["post_id"])
-
-        return pids
-
 
 def lambda_handler(event, context):
     print(event, context)
+    start = time.time()
     parqr = Parqr()
+    print("Set up Parqr class in {} ms".format((time.time() - start) * 1000))
+
     body = json.loads(event.get("body"))
     course_id = event['pathParameters'].get("course_id")
     query = body["query"]

@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 import time
 
 from boto3.dynamodb.conditions import Attr
+from botocore.exceptions import ClientError
 import boto3
 import pandas as pd
 import numpy as np
@@ -12,33 +13,17 @@ from app.constants import POST_AGE_SIGMOID_OFFSET, POST_MAX_AGE_DAYS
 
 def get_posts_table(course_id):
     dynamodb = boto3.resource('dynamodb')
-    return dynamodb.Table(course_id)
+    posts_table = dynamodb.Table(course_id)
+    try:
+        if posts_table.table_status == "ACTIVE":
+            return posts_table
+    except ClientError:
+        return None
 
 
 def get_courses_table():
     dynamodb = boto3.resource('dynamodb')
     return dynamodb.Table('Courses')
-
-
-def is_course_id_valid(course_id):
-    """A check to see if the course_id has parqr installed over it or not
-
-    Parameters
-    ----------
-    course_id : str
-        The course id of the class
-
-    Return
-    ------
-    is_valid : bool
-        True or False based on whether the course_id is valid or not
-    """
-    courses = get_courses_table()
-    return False if courses.get_item(
-        Key={
-            'course_id': course_id
-        }
-    ).get('Item') is None else True
 
 
 def _validate_starting_time(starting_time):
@@ -88,13 +73,13 @@ def get_inst_att_needed_posts(course_id, number_of_posts):
         A list of dictionary of posts
     """
     # Sanity check to see if the course_id sent is valid course_id or not
-    is_valid = is_course_id_valid(course_id)
-    if not is_valid:
+    posts = get_posts_table(course_id)
+    if not posts:
         raise InvalidUsage('Invalid course id provided')
 
-    posts = get_posts_table(course_id)
-
     DATE_CUTOFF = int(datetime.timestamp(datetime.now() + timedelta(days=-21)))
+
+    start = time.time()
     response = posts.scan(
         FilterExpression=Attr("post_type").eq("question") &
                          ~Attr("tags").contains("instructor-question") &
@@ -110,6 +95,9 @@ def get_inst_att_needed_posts(course_id, number_of_posts):
             ExclusiveStartKey=response['LastEvaluatedKey']
         )
         filtered_posts.extend(response['Items'])
+
+    print("Retrieved {} Posts from DDB in {} ms"
+          .format(len(response), (time.time() - start) * 1000))
 
     def _create_top_post(post):
         post_data = {"title": post["subject"], "post_id": int(post["post_id"])}
@@ -151,7 +139,6 @@ def get_inst_att_needed_posts(course_id, number_of_posts):
     return list(map(_create_top_post, filtered_posts[:n_posts]))
 
 
-#TODO: Should probably move this to the resource class
 def get_stud_att_needed_posts(course_id, num_posts):
     """Retrieves the top student attention needed posts, for a specific course,
     with the search time being [starting_time, now). The posts from the past
@@ -176,14 +163,16 @@ def get_stud_att_needed_posts(course_id, num_posts):
     """
     now = datetime.now()
     # Sanity check to see if the course_id sent is valid course_id or not
-    is_valid = is_course_id_valid(course_id)
-    if not is_valid:
-        raise InvalidUsage('Invalid course id provided')
-
+    start = time.time()
     posts = get_posts_table(course_id)
+    if not posts:
+        raise InvalidUsage('Invalid course id provided')
+    print("Checked if course was valid in {} ms"
+          .format((time.time() - start) * 1000))
 
     max_age_date = int(datetime.timestamp(now - timedelta(hours=POST_MAX_AGE_DAYS * 24)))
     print(max_age_date)
+    start = time.time()
     response = posts.scan(
         FilterExpression=Attr("post_type").eq("question") &
                          ~Attr("tags").contains("instructor-question") &
@@ -198,6 +187,9 @@ def get_stud_att_needed_posts(course_id, num_posts):
                              Attr("created").gt(max_age_date),
             ExclusiveStartKey=response['LastEvaluatedKey'])
         filtered_posts.extend(response['Items'])
+
+    print("Retrieved {} Posts from DDB in {} ms"
+          .format(len(response), (time.time() - start) * 1000))
 
     if len(filtered_posts) == 0:
         print("No posts found since {} for course_id {}".format(max_age_date, course_id))
@@ -236,6 +228,7 @@ def get_stud_att_needed_posts(course_id, num_posts):
         return x / (x.max() - x.min())
 
     print("{} filtered posts".format(len(filtered_posts)))
+    start = time.time()
     posts_df = _posts_bqs_to_df(filtered_posts)
     posts_df.created = posts_df.created.fillna(posts_df.created.min())
     posts_age = (now - posts_df.created)
@@ -250,4 +243,7 @@ def get_stud_att_needed_posts(course_id, num_posts):
     posts_df = posts_df.sort_values(by='importance', ascending=False)
     filtered_posts_ids = list(posts_df.head(num_posts).post_id)
     top_posts = [post for post in filtered_posts if post["post_id"] in filtered_posts_ids]
-    return list(map(_create_top_post, top_posts))
+    retval = list(map(_create_top_post, top_posts))
+    print("{} Recommended Posts in {} ms"
+          .format(len(retval), (time.time() - start) * 1000))
+    return retval

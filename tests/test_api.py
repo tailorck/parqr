@@ -109,10 +109,6 @@ def mock_get_posts_table(course_id):
     return mock_boto3
 
 
-def mock_is_course_id_valid(course_id):
-    return True
-
-
 class TestStudentRecommendationAPI(unittest.TestCase):
     def setUp(self):
         self.env = mock.patch.dict('os.environ', {'stage': 'prod'})
@@ -123,8 +119,7 @@ class TestStudentRecommendationAPI(unittest.TestCase):
         self.res_data = b'{"message": "success", "recommendations": [{"post_id": 18, "subject": "oh henlo", "date_modified": 1581482976, "followups": 0, "views": 2, "tags": ["hw4", "student", "unanswered"], "i_answer": false, "s_answer": false, "resolved": true}]}\n'
 
     @mock.patch('app.statistics.get_posts_table', side_effect=mock_get_posts_table)
-    @mock.patch('app.statistics.is_course_id_valid', side_effect=mock_is_course_id_valid)
-    def test_get(self, mock_get_posts_table_function, mock_is_course_id_valid_function):
+    def test_get(self, mock_get_posts_table_function):
         res = self.test_app.get('/prod/courses/j8rf9vx65vl23t/recommendation/student')
         assert res.data == self.res_data
 
