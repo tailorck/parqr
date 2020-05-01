@@ -15,7 +15,7 @@ def lambda_handler(event, context):
                 "S": course_id
             }
         },
-        UpdateExpression="ADD parqr_users :i, SET num_parqr_users = ",
+        UpdateExpression="ADD parqr_users :i",
         ExpressionAttributeValues={
             ':i': {
                 "SS": [user_id],
