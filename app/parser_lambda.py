@@ -171,18 +171,21 @@ class Parser(object):
                 try:
                     post = network.get_post(pid)
                 except RequestError:
-                    all_pids.remove(pid)
+                    all_pids.discard(pid)
                     continue
 
                 # Skip deleted and private posts
                 if post['status'] == 'deleted' or post['status'] == 'private':
-                    print("Deleted post with pid {} and course id {} from Posts".format(pid, course_id))
-                    all_pids.remove(pid)
-                    batch.delete_item(
-                        Key={
-                            "post_id": pid,
-                        }
-                    )
+                    if pid in previous_all_pids:
+                        print("Deleted post with pid {} and course id {} from Posts".format(pid, course_id))
+                        all_pids.discard(pid)
+                        previous_all_pids.discard(pid)
+                        batch.delete_item(
+                            Key={
+                                "post_id": pid,
+                            }
+                        )
+                    continue
 
                 # If the post is neither deleted nor private, it should be in the db
                 current_pids.add(pid)
@@ -198,7 +201,6 @@ class Parser(object):
 
                 # Get creation and last modified time
                 created = datetime.strptime(post['created'], DATETIME_FORMAT)
-                modified = datetime.strptime(post['modified'], DATETIME_FORMAT)
                 # Extract number of unresolved followups (if any)
                 num_unresolved_followups = self._extract_num_unresolved(post)
 
@@ -212,7 +214,6 @@ class Parser(object):
                 item = {
                     "post_id": pid,
                     "created": int(created.timestamp()),
-                    "modified": int(modified.timestamp()),
                     "subject": subject,
                     "body": body,
                     "tags": tags,
@@ -232,13 +233,13 @@ class Parser(object):
                 except ClientError as e:
                     print(pid, item)
                     print(e)
-                    current_pids.remove(pid)
-                    all_pids.remove(pid)
+                    current_pids.discard(pid)
+                    all_pids.discard(pid)
                     continue
 
             deleted_pids = previous_all_pids - all_pids
             for pid in deleted_pids:
-                all_pids.remove(pid)
+                all_pids.discard(pid)
                 print("Deleted post with pid {} and course id {} from Posts".format(pid, course_id))
                 batch.delete_item(
                     Key={
@@ -277,7 +278,7 @@ class Parser(object):
                 ':pids': all_pids,
                 ":num_students": all_users,
                 ":num_posts": str(network.get_statistics()['total']['questions']),
-                ":last_modified": str(datetime.now().timestamp())
+                ":last_modified": int(datetime.now().timestamp())
             }
         )
 
