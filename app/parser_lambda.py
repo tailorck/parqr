@@ -107,6 +107,7 @@ class Parser(object):
                 course["stats"] = {}
                 course["stats"]["num_posts"] = stats.get("num_posts")
                 course["stats"]["num_students"] = stats.get("num_students")
+                course["stats"]["num_parqr_users"] = len(stats.get("parqr_users", []))
         return enrolled_courses
 
     def update_posts(self, course_id):
