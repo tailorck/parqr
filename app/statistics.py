@@ -92,22 +92,26 @@ def get_inst_att_needed_posts(course_id, number_of_posts):
 
         DATE_CUTOFF = int(datetime.timestamp(datetime.now() + timedelta(days=-21)))
 
-        start = time.time()
-        response = posts.scan(
-            FilterExpression=Attr("post_type").eq("question") &
-                             ~Attr("tags").contains("instructor-question") &
-                             Attr("created").gt(DATE_CUTOFF)
-        )
-        filtered_posts = response.get("Items")
-
-        while 'LastEvaluatedKey' in response:
+        try:
+            start = time.time()
             response = posts.scan(
                 FilterExpression=Attr("post_type").eq("question") &
                                  ~Attr("tags").contains("instructor-question") &
-                                 Attr("created").gt(DATE_CUTOFF),
-                ExclusiveStartKey=response['LastEvaluatedKey']
+                                 Attr("created").gt(DATE_CUTOFF)
             )
-            filtered_posts.extend(response['Items'])
+            filtered_posts = response.get("Items")
+
+            while 'LastEvaluatedKey' in response:
+                response = posts.scan(
+                    FilterExpression=Attr("post_type").eq("question") &
+                                     ~Attr("tags").contains("instructor-question") &
+                                     Attr("created").gt(DATE_CUTOFF),
+                    ExclusiveStartKey=response['LastEvaluatedKey']
+                )
+                filtered_posts.extend(response['Items'])
+        except ClientError as ce:
+            print(ce)
+            return []
 
         if "Linux" in platform.platform():
             with open(filename, "w") as json_file:
@@ -198,20 +202,24 @@ def get_stud_att_needed_posts(course_id, num_posts):
         max_age_date = int(datetime.timestamp(now - timedelta(hours=POST_MAX_AGE_DAYS * 24)))
         print(max_age_date)
 
-        response = posts.scan(
-            FilterExpression=Attr("post_type").eq("question") &
-                             ~Attr("tags").contains("instructor-question") &
-                             Attr("created").gt(max_age_date)
-        )
-        filtered_posts = response.get("Items")
-
-        while 'LastEvaluatedKey' in response:
+        try:
             response = posts.scan(
                 FilterExpression=Attr("post_type").eq("question") &
                                  ~Attr("tags").contains("instructor-question") &
-                                 Attr("created").gt(max_age_date),
-                ExclusiveStartKey=response['LastEvaluatedKey'])
-            filtered_posts.extend(response['Items'])
+                                 Attr("created").gt(max_age_date)
+            )
+            filtered_posts = response.get("Items")
+
+            while 'LastEvaluatedKey' in response:
+                response = posts.scan(
+                    FilterExpression=Attr("post_type").eq("question") &
+                                     ~Attr("tags").contains("instructor-question") &
+                                     Attr("created").gt(max_age_date),
+                    ExclusiveStartKey=response['LastEvaluatedKey'])
+                filtered_posts.extend(response['Items'])
+        except ClientError as ce:
+            print(ce)
+            return []
 
         if "Linux" in platform.platform():
             with open(filename, "w") as json_file:
