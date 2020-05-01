@@ -1,8 +1,9 @@
 $(document).ready(function () {
-  $('#dtBasicExample').DataTable({
-    "order": [[ 4, 'desc' ]]
+  $('#mui-table').DataTable({
+    "order": [[ 4, 'desc' ]],
+    "paging": false,
+    "info": false
   });
-  $('.dataTables_length').addClass('bs-select');
 });
 
 function getCookie(cname) {
@@ -23,7 +24,7 @@ function getCookie(cname) {
 
 
 $(document).ready(function(){
-  $('#dtBasicExample tbody').on("click", 'tr',  function(){
+  $('#mui-table tbody').on("click", 'tr',  function(){
     var toggleSwitchId = $(this).find('input')[0].id;
     var course_id = $(this).find('td:first-child').text();
     var status_span = $(this).find('td:nth-child(5)').find('span');

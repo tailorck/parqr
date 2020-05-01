@@ -22,6 +22,7 @@ def dashboard():
         "id_token": request.cookies.get("id_token")
     }
     api_result = requests.get('https://aws.parqr.io/prod/courses', headers=headers)
+    print(api_result.text)
     course_info = json.loads(api_result.text)
     headers = {"Content-Type": "text/html"}
     return make_response(render_template('parqr.html', course_info=course_info, len=len(course_info)),

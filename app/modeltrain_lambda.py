@@ -50,7 +50,7 @@ class ModelTrain(object):
             model_name (str): The name of the model dictated by the
                 TFIDF_MODELS enum
         """
-        words, pid_list = self._get_words_for_model(model_name)
+        words, pid_list = self._get_words_for_model(model_name, cid)
         # print(words, pid_list, words.size)
         if words.size != 0:
             vectorizer = TfidfVectorizer(analyzer='word',
@@ -62,7 +62,7 @@ class ModelTrain(object):
             self.model_cache.store_matrix(cid, model_name, matrix)
             self.model_cache.store_pid_list(cid, model_name, pid_list)
 
-    def _get_words_for_model(self, model_name):
+    def _get_words_for_model(self, model_name, cid):
         """Retrieves the appropriate text for a given course and model name.
 
         Currently there are 4 options for model_names, so the text retrieved
@@ -87,7 +87,8 @@ class ModelTrain(object):
         payload = {
             "source": "ModelTrain",
             "posts": posts,
-            "model_name": model_name.name
+            "model_name": model_name.name,
+            "course_id": cid
         }
 
         start = time.time()

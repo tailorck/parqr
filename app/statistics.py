@@ -1,5 +1,9 @@
+import platform
+
+import simplejson as json
 from datetime import datetime, timedelta
 import time
+import os
 
 from boto3.dynamodb.conditions import Attr
 from botocore.exceptions import ClientError
@@ -72,32 +76,49 @@ def get_inst_att_needed_posts(course_id, number_of_posts):
     top_posts : list
         A list of dictionary of posts
     """
-    # Sanity check to see if the course_id sent is valid course_id or not
-    posts = get_posts_table(course_id)
-    if not posts:
-        raise InvalidUsage('Invalid course id provided')
-
-    DATE_CUTOFF = int(datetime.timestamp(datetime.now() + timedelta(days=-21)))
-
+    filename = "".join(["/tmp/", course_id, ".json"])
     start = time.time()
-    response = posts.scan(
-        FilterExpression=Attr("post_type").eq("question") &
-                         ~Attr("tags").contains("instructor-question") &
-                         Attr("created").gt(DATE_CUTOFF)
-    )
-    filtered_posts = response.get("Items")
+    if os.path.exists(filename):
+        with open(filename, "r") as json_file:
+            filtered_posts = json.load(json_file)
 
-    while 'LastEvaluatedKey' in response:
-        response = posts.scan(
-            FilterExpression=Attr("post_type").eq("question") &
-                             ~Attr("tags").contains("instructor-question") &
-                             Attr("created").gt(DATE_CUTOFF),
-            ExclusiveStartKey=response['LastEvaluatedKey']
-        )
-        filtered_posts.extend(response['Items'])
+        print("Retrieved {} Posts from /tmp in {} ms"
+              .format(len(filtered_posts), (time.time() - start) * 1000))
+    else:
+        # Sanity check to see if the course_id sent is valid course_id or not
+        posts = get_posts_table(course_id)
+        if not posts:
+            raise InvalidUsage('Invalid course id provided')
 
-    print("Retrieved {} Posts from DDB in {} ms"
-          .format(len(response), (time.time() - start) * 1000))
+        DATE_CUTOFF = int(datetime.timestamp(datetime.now() + timedelta(days=-21)))
+
+        try:
+            start = time.time()
+            response = posts.scan(
+                FilterExpression=Attr("post_type").eq("question") &
+                                 ~Attr("tags").contains("instructor-question") &
+                                 Attr("created").gt(DATE_CUTOFF)
+            )
+            filtered_posts = response.get("Items")
+
+            while 'LastEvaluatedKey' in response:
+                response = posts.scan(
+                    FilterExpression=Attr("post_type").eq("question") &
+                                     ~Attr("tags").contains("instructor-question") &
+                                     Attr("created").gt(DATE_CUTOFF),
+                    ExclusiveStartKey=response['LastEvaluatedKey']
+                )
+                filtered_posts.extend(response['Items'])
+        except ClientError as ce:
+            print(ce)
+            return []
+
+        if "Linux" in platform.platform():
+            with open(filename, "w") as json_file:
+                json.dump(filtered_posts, json_file)
+
+        print("Retrieved {} Posts from DDB in {} ms"
+              .format(len(response), (time.time() - start) * 1000))
 
     def _create_top_post(post):
         post_data = {"title": post["subject"], "post_id": int(post["post_id"])}
@@ -163,33 +184,49 @@ def get_stud_att_needed_posts(course_id, num_posts):
     """
     now = datetime.now()
     # Sanity check to see if the course_id sent is valid course_id or not
+    filename = "".join(["/tmp/", course_id, ".json"])
     start = time.time()
-    posts = get_posts_table(course_id)
-    if not posts:
-        raise InvalidUsage('Invalid course id provided')
-    print("Checked if course was valid in {} ms"
-          .format((time.time() - start) * 1000))
+    if os.path.exists(filename):
+        with open(filename, "r") as json_file:
+            filtered_posts = json.load(json_file)
 
-    max_age_date = int(datetime.timestamp(now - timedelta(hours=POST_MAX_AGE_DAYS * 24)))
-    print(max_age_date)
-    start = time.time()
-    response = posts.scan(
-        FilterExpression=Attr("post_type").eq("question") &
-                         ~Attr("tags").contains("instructor-question") &
-                         Attr("created").gt(max_age_date)
-    )
-    filtered_posts = response.get("Items")
+        print("Retrieved {} Posts from /tmp in {} ms"
+              .format(len(filtered_posts), (time.time() - start) * 1000))
+    else:
+        posts = get_posts_table(course_id)
+        if not posts:
+            raise InvalidUsage('Invalid course id provided')
+        print("Checked if course was valid in {} ms"
+              .format((time.time() - start) * 1000))
 
-    while 'LastEvaluatedKey' in response:
-        response = posts.scan(
-            FilterExpression=Attr("post_type").eq("question") &
-                             ~Attr("tags").contains("instructor-question") &
-                             Attr("created").gt(max_age_date),
-            ExclusiveStartKey=response['LastEvaluatedKey'])
-        filtered_posts.extend(response['Items'])
+        max_age_date = int(datetime.timestamp(now - timedelta(hours=POST_MAX_AGE_DAYS * 24)))
+        print(max_age_date)
 
-    print("Retrieved {} Posts from DDB in {} ms"
-          .format(len(response), (time.time() - start) * 1000))
+        try:
+            response = posts.scan(
+                FilterExpression=Attr("post_type").eq("question") &
+                                 ~Attr("tags").contains("instructor-question") &
+                                 Attr("created").gt(max_age_date)
+            )
+            filtered_posts = response.get("Items")
+
+            while 'LastEvaluatedKey' in response:
+                response = posts.scan(
+                    FilterExpression=Attr("post_type").eq("question") &
+                                     ~Attr("tags").contains("instructor-question") &
+                                     Attr("created").gt(max_age_date),
+                    ExclusiveStartKey=response['LastEvaluatedKey'])
+                filtered_posts.extend(response['Items'])
+        except ClientError as ce:
+            print(ce)
+            return []
+
+        if "Linux" in platform.platform():
+            with open(filename, "w") as json_file:
+                json.dump(filtered_posts, json_file)
+
+        print("Retrieved {} Posts from DDB in {} ms"
+              .format(len(filtered_posts), (time.time() - start) * 1000))
 
     if len(filtered_posts) == 0:
         print("No posts found since {} for course_id {}".format(max_age_date, course_id))

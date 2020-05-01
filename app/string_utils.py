@@ -1,3 +1,4 @@
+import boto3
 import spacy
 from enum import Enum
 
@@ -55,7 +56,11 @@ def lambda_handler(event, context):
     if event["source"] == "ModelTrain":
         print("ModelTrain source")
         posts = event["posts"]
-        print("{} posts".format(len(posts)))
+        course_id = event["course_id"]
+        print("{} posts for course {}".format(len(posts), course_id))
+
+        dynamodb = boto3.resource('dynamodb')
+        course_table = dynamodb.Table(course_id)
 
         model_name = event["model_name"]
         words = []
@@ -63,30 +68,85 @@ def lambda_handler(event, context):
 
         for post in posts:
             if model_name == "POST":
-                clean_subject = spacy_clean(post.get("subject"))
-                clean_body = spacy_clean(post.get("body"))
-                tags = post.get("tags")
-                words.append(' '.join(clean_subject + clean_body + tags))
+                if not post.get("POST_words"):
+                    clean_subject = spacy_clean(post.get("subject"))
+                    clean_body = spacy_clean(post.get("body"))
+                    tags = post.get("tags")
+                    words.append(' '.join(clean_subject + clean_body + tags))
+
+                    course_table.update_item(
+                        Key={
+                            "post_id": post["post_id"]
+                        },
+                        UpdateExpression='SET POST_words = :post_words',
+                        ExpressionAttributeValues={
+                            ':post_words': ' '.join(clean_subject + clean_body + tags),
+                        }
+                    )
+                else:
+                    words.append(post.get("POST_words"))
                 model_pid_list.append(post["post_id"])
             elif model_name == "I_ANSWER":
                 if post.get("i_answer"):
-                    words.append(' '.join(spacy_clean(post["i_answer"])))
+                    if not post.get("I_ANSWER_words"):
+                        i_answer = ' '.join(spacy_clean(post["i_answer"]))
+                        words.append(i_answer)
+
+                        course_table.update_item(
+                            Key={
+                                "post_id": post["post_id"]
+                            },
+                            UpdateExpression='SET I_ANSWER_words = :words',
+                            ExpressionAttributeValues={
+                                ':words': i_answer,
+                            }
+                        )
+                    else:
+                        words.append(post.get("I_ANSWER_words"))
                     model_pid_list.append(post["post_id"])
             elif model_name == "S_ANSWER":
                 if post.get("s_answer"):
-                    words.append(' '.join(spacy_clean(post["s_answer"])))
+                    if not post.get("S_ANSWER_words"):
+                        s_answer = ' '.join(spacy_clean(post["s_answer"]))
+                        words.append(s_answer)
+
+                        course_table.update_item(
+                            Key={
+                                "post_id": post["post_id"]
+                            },
+                            UpdateExpression='SET S_ANSWER_words = :words',
+                            ExpressionAttributeValues={
+                                ':words': s_answer,
+                            }
+                        )
+                    else:
+                        words.append(post.get("S_ANSWER_words"))
                     model_pid_list.append(post["post_id"])
             elif model_name == "FOLLOWUP":
                 if post.get("followups") and len(post["followups"]) < 15:
-                    followup_str = stringify_followups(post["followups"])
-                    words.append(' '.join(spacy_clean(followup_str)))
+                    if not post.get("FOLLOWUP_words"):
+                        followup_str = stringify_followups(post["followups"])
+                        followup_words = ' '.join(spacy_clean(followup_str))
+                        words.append(followup_words)
+
+                        course_table.update_item(
+                            Key={
+                                "post_id": post["post_id"]
+                            },
+                            UpdateExpression='SET FOLLOWUP_words = :words',
+                            ExpressionAttributeValues={
+                                ':words': followup_words,
+                            }
+                        )
+                    else:
+                        words.append(post.get("FOLLOWUP_words"))
                     model_pid_list.append(post["post_id"])
 
         response = {
             "words": words,
             "model_pid_list": model_pid_list
         }
-        print(response)
+        print("{} words for {} posts".format(len(response["words"]), len(response["model_pid_list"])))
         return response
     elif event["source"] == "Query":
         print("Query source")

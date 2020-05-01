@@ -11,10 +11,6 @@ table.dataTable thead .sorting_desc_disabled:before {
 bottom: .5em;
 }
 
-table.dataTable thead tr {
-  background-color: #488AC7;
-}
-
 button.btn.btn-lg.btn-primary.btn-block {
   background-color: #488AC7;
   border-color: black;

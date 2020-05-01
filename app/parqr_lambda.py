@@ -276,6 +276,19 @@ def lambda_handler(event, context):
     body = json.loads(event.get("body"))
     course_id = event['pathParameters'].get("course_id")
     query = body["query"]
+    user_id = body.get("user_id")
+    if user_id:
+        payload = {
+            "course_id": course_id,
+            "user_id": user_id
+        }
+
+        lambda_client.invoke(
+            FunctionName='Users',
+            InvocationType='Event',
+            Payload=bytes(json.dumps(payload), encoding='utf8')
+        )
+
     N = int(body.get("N", 5))
     recs = parqr.get_recommendations(course_id, query, N)
     print(recs)
