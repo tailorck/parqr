@@ -224,14 +224,14 @@ class Parser(object):
                     "num_unresolved_followups": num_unresolved_followups,
                     "num_views": num_views
                 }
-                cleaned_item = {k: v for k, v in item.items() if v is not None}
+                cleaned_item = {k: v for k, v in item.items() if v}
                 try:
                     batch.put_item(
                         Item=cleaned_item
                     )
                     train = True
                 except ClientError as e:
-                    print(pid, item)
+                    print(pid, cleaned_item)
                     print(e)
                     current_pids.discard(pid)
                     all_pids.discard(pid)
@@ -370,16 +370,20 @@ class Parser(object):
             if child['type'] == 'followup':
                 html_text = child['subject']
                 soup = BeautifulSoup(html_text, 'html.parser')
-                data['text'] = soup.get_text()
+                text = soup.get_text()
+                if text:
+                    data['text'] = text
 
                 responses = []
                 if child['children']:
                     for activity in child['children']:
                         html_text = activity['subject']
                         soup = BeautifulSoup(html_text, 'html.parser')
-                        responses.append(soup.get_text())
+                        text = soup.get_text()
+                        if text:
+                            responses.append(text)
 
-                data['responses'] = responses
+                    data['responses'] = responses
 
                 followups.append(data)
 
