@@ -1,0 +1,963 @@
+{
+	"info": {
+		"_postman_id": "722159a9-d6f7-4769-88c3-11925b0f6600",
+		"name": "PARQR AWS",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Production",
+			"item": [
+				{
+					"name": "Hello World",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "0c422f40-efc6-4c81-b5b9-e7514a4776bc",
+								"exec": [
+									"pm.test(\"Body matches string\", function () {",
+									"    pm.expect(pm.response.text()).to.include(\"Hello, World!\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text",
+								"disabled": true
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "aws.parqr.io/prod",
+							"host": [
+								"aws",
+								"parqr",
+								"io"
+							],
+							"path": [
+								"prod"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Enrolled Courses",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "6c674a20-6043-4901-a6d5-633c4e7508b0",
+								"exec": [
+									"pm.test(\"Enrolled course >= 1\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.length).to.be.above(1);",
+									"});",
+									"",
+									"pm.test(\"CS 007 Enrolled\", function() {",
+									"    var jsonData = pm.response.json();",
+									"    ",
+									"    var not_enrolled = true",
+									"    for(let i=0; i < jsonData.length; i++) {",
+									"        if(jsonData[i][\"course_num\"] == \"CS 007\") {",
+									"            not_enrolled = false",
+									"        }",
+									"    }",
+									"    ",
+									"    if(not_enrolled) {",
+									"        pm.expect.fail()",
+									"    }",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "aws.parqr.io/prod/courses",
+							"host": [
+								"aws",
+								"parqr",
+								"io"
+							],
+							"path": [
+								"prod",
+								"courses"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Find Course by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "6c674a20-6043-4901-a6d5-633c4e7508b0",
+								"exec": [
+									"pm.test(\"Is Course Found\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property(\"name\")",
+									"    pm.expect(jsonData).to.have.property(\"active\")",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "aws.parqr.io/prod/courses/j8rf9vx65vl23t",
+							"host": [
+								"aws",
+								"parqr",
+								"io"
+							],
+							"path": [
+								"prod",
+								"courses",
+								"j8rf9vx65vl23t"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Check Course Active",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "6c674a20-6043-4901-a6d5-633c4e7508b0",
+								"exec": [
+									"pm.test(\"CS 007 Active\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property(\"active\")",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "aws.parqr.io/prod/courses/j8rf9vx65vl23t/active",
+							"host": [
+								"aws",
+								"parqr",
+								"io"
+							],
+							"path": [
+								"prod",
+								"courses",
+								"j8rf9vx65vl23t",
+								"active"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Activate Course",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "6c674a20-6043-4901-a6d5-633c4e7508b0",
+								"exec": [
+									"pm.test(\"Your test name\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.active).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "aws.parqr.io/prod/courses/j8rf9vx65vl23t/active",
+							"host": [
+								"aws",
+								"parqr",
+								"io"
+							],
+							"path": [
+								"prod",
+								"courses",
+								"j8rf9vx65vl23t",
+								"active"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Deactivate Course",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "6c674a20-6043-4901-a6d5-633c4e7508b0",
+								"exec": [
+									"pm.test(\"Your test name\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.active).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "aws.parqr.io/prod/courses/j8rf9vx65vl23t/active",
+							"host": [
+								"aws",
+								"parqr",
+								"io"
+							],
+							"path": [
+								"prod",
+								"courses",
+								"j8rf9vx65vl23t",
+								"active"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Similar Posts (With N)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"minimax\",\n  \"N\": 3,\n  \"course_id\": \"j8rf9vx65vl23t\"\n}"
+						},
+						"url": {
+							"raw": "aws.parqr.io/prod/courses/j8rf9vx65vl23t/query/student",
+							"host": [
+								"aws",
+								"parqr",
+								"io"
+							],
+							"path": [
+								"prod",
+								"courses",
+								"j8rf9vx65vl23t",
+								"query",
+								"student"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Event",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n   \"type\": \"event\",\n   \"eventName\": \"newPost\",\n   \"eventData\": {\n       \"course_id\": \"j8rf9vx65vl23t\"\n   },\n   \"time\": 1517455808181,\n   \"user_id\": \"8376055785967259\"\n}"
+						},
+						"url": {
+							"raw": "aws.parqr.io/prod/event",
+							"host": [
+								"aws",
+								"parqr",
+								"io"
+							],
+							"path": [
+								"prod",
+								"event"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Feedback",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"feedback_pid\": 82,\n  \"query_rec_id\": \"d357628d-e49f-475d-b9f3-cd45162c6ddd\",\n  \"user_id\": \"some_user_id\",\n  \"course_id\": \"jze974ouf142qb\",\n  \"user_rating\": 4\n}"
+						},
+						"url": {
+							"raw": "aws.parqr.io/prod/feedback",
+							"host": [
+								"aws",
+								"parqr",
+								"io"
+							],
+							"path": [
+								"prod",
+								"feedback"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Student Recommendation",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "1d235610-3843-44b3-8ab5-2e96bbf382ce",
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Your test name\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.eql(\"success\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "aws.parqr.io/prod/courses/j8rf9vx65vl23t/recommendation/student",
+							"host": [
+								"aws",
+								"parqr",
+								"io"
+							],
+							"path": [
+								"prod",
+								"courses",
+								"j8rf9vx65vl23t",
+								"recommendation",
+								"student"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Instructor Recommendation",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "16b9d617-bff7-4313-9312-a029ccb94278",
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Your test name\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.eql(\"success\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "aws.parqr.io/prod/courses/j8rf9vx65vl23t/recommendation/instructor",
+							"host": [
+								"aws",
+								"parqr",
+								"io"
+							],
+							"path": [
+								"prod",
+								"courses",
+								"j8rf9vx65vl23t",
+								"recommendation",
+								"instructor"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Dev",
+			"item": [
+				{
+					"name": "Hello World",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "0c422f40-efc6-4c81-b5b9-e7514a4776bc",
+								"exec": [
+									"pm.test(\"Body matches string\", function () {",
+									"    pm.expect(pm.response.text()).to.include(\"Hello, World!\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text",
+								"disabled": true
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "aws.parqr.io/dev",
+							"host": [
+								"aws",
+								"parqr",
+								"io"
+							],
+							"path": [
+								"dev"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Enrolled Courses",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "6c674a20-6043-4901-a6d5-633c4e7508b0",
+								"exec": [
+									"pm.test(\"Enrolled course >= 1\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.length).to.be.above(1);",
+									"});",
+									"",
+									"pm.test(\"CS 007 Enrolled\", function() {",
+									"    var jsonData = pm.response.json();",
+									"    ",
+									"    var not_enrolled = true",
+									"    for(let i=0; i < jsonData.length; i++) {",
+									"        if(jsonData[i][\"course_num\"] == \"CS 007\") {",
+									"            not_enrolled = false",
+									"        }",
+									"    }",
+									"    ",
+									"    if(not_enrolled) {",
+									"        pm.expect.fail()",
+									"    }",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "aws.parqr.io/dev/courses",
+							"host": [
+								"aws",
+								"parqr",
+								"io"
+							],
+							"path": [
+								"dev",
+								"courses"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Find Course by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "6c674a20-6043-4901-a6d5-633c4e7508b0",
+								"exec": [
+									"pm.test(\"Is Course Found\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property(\"name\")",
+									"    pm.expect(jsonData).to.have.property(\"active\")",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "aws.parqr.io/dev/courses/j8rf9vx65vl23t",
+							"host": [
+								"aws",
+								"parqr",
+								"io"
+							],
+							"path": [
+								"dev",
+								"courses",
+								"j8rf9vx65vl23t"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Check Course Active",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "6c674a20-6043-4901-a6d5-633c4e7508b0",
+								"exec": [
+									"pm.test(\"CS 007 Active\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property(\"active\")",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "aws.parqr.io/dev/courses/j8rf9vx65vl23t/active",
+							"host": [
+								"aws",
+								"parqr",
+								"io"
+							],
+							"path": [
+								"dev",
+								"courses",
+								"j8rf9vx65vl23t",
+								"active"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Activate Course",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "6c674a20-6043-4901-a6d5-633c4e7508b0",
+								"exec": [
+									"pm.test(\"Your test name\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.active).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "aws.parqr.io/dev/courses/j8rf9vx65vl23t/active",
+							"host": [
+								"aws",
+								"parqr",
+								"io"
+							],
+							"path": [
+								"dev",
+								"courses",
+								"j8rf9vx65vl23t",
+								"active"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Deactivate Course",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "6c674a20-6043-4901-a6d5-633c4e7508b0",
+								"exec": [
+									"pm.test(\"Your test name\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.active).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "aws.parqr.io/dev/courses/j8rf9vx65vl23t/active",
+							"host": [
+								"aws",
+								"parqr",
+								"io"
+							],
+							"path": [
+								"dev",
+								"courses",
+								"j8rf9vx65vl23t",
+								"active"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Similar Posts (With N)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"alpha beta\",\n  \"N\": 3,\n  \"course_id\": \"j8rf9vx65vl23t\"\n}"
+						},
+						"url": {
+							"raw": "aws.parqr.io/dev/courses/j8rf9vx65vl23t/query/student",
+							"host": [
+								"aws",
+								"parqr",
+								"io"
+							],
+							"path": [
+								"dev",
+								"courses",
+								"j8rf9vx65vl23t",
+								"query",
+								"student"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Event",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "4da9a60f-f968-4a77-865f-92787390a8b5",
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n   \"type\": \"event\",\n   \"eventName\": \"newPost\",\n   \"eventData\": {\n       \"course_id\": \"j8rf9vx65vl23t\"\n   },\n   \"time\": 1517455808181,\n   \"user_id\": \"8376055785967259\"\n}"
+						},
+						"url": {
+							"raw": "aws.parqr.io/dev/event",
+							"host": [
+								"aws",
+								"parqr",
+								"io"
+							],
+							"path": [
+								"dev",
+								"event"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Feedback",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"feedback_pid\": 82,\n  \"query_rec_id\": \"d357628d-e49f-475d-b9f3-cd45162c6ddd\",\n  \"user_id\": \"some_user_id\",\n  \"course_id\": \"jze974ouf142qb\",\n  \"user_rating\": 4\n}"
+						},
+						"url": {
+							"raw": "aws.parqr.io/dev/feedback",
+							"host": [
+								"aws",
+								"parqr",
+								"io"
+							],
+							"path": [
+								"dev",
+								"feedback"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Student Recommendation",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "1d235610-3843-44b3-8ab5-2e96bbf382ce",
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Your test name\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.eql(\"success\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "aws.parqr.io/dev/courses/j8rf9vx65vl23t/recommendation/student",
+							"host": [
+								"aws",
+								"parqr",
+								"io"
+							],
+							"path": [
+								"dev",
+								"courses",
+								"j8rf9vx65vl23t",
+								"recommendation",
+								"student"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Instructor Recommendation",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "16b9d617-bff7-4313-9312-a029ccb94278",
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Your test name\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.eql(\"success\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "aws.parqr.io/dev/courses/j8rf9vx65vl23t/recommendation/instructor",
+							"host": [
+								"aws",
+								"parqr",
+								"io"
+							],
+							"path": [
+								"dev",
+								"courses",
+								"j8rf9vx65vl23t",
+								"recommendation",
+								"instructor"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
