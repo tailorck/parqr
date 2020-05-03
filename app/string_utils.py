@@ -91,16 +91,16 @@ def lambda_handler(event, context):
                     if not post.get("I_ANSWER_words"):
                         i_answer = ' '.join(spacy_clean(post["i_answer"]))
                         words.append(i_answer)
-
-                        course_table.update_item(
-                            Key={
-                                "post_id": post["post_id"]
-                            },
-                            UpdateExpression='SET I_ANSWER_words = :words',
-                            ExpressionAttributeValues={
-                                ':words': i_answer,
-                            }
-                        )
+                        if len(i_answer) > 0:
+                            course_table.update_item(
+                                Key={
+                                    "post_id": post["post_id"]
+                                },
+                                UpdateExpression='SET I_ANSWER_words = :words',
+                                ExpressionAttributeValues={
+                                    ':words': i_answer,
+                                }
+                            )
                     else:
                         words.append(post.get("I_ANSWER_words"))
                     model_pid_list.append(post["post_id"])
@@ -110,15 +110,16 @@ def lambda_handler(event, context):
                         s_answer = ' '.join(spacy_clean(post["s_answer"]))
                         words.append(s_answer)
 
-                        course_table.update_item(
-                            Key={
-                                "post_id": post["post_id"]
-                            },
-                            UpdateExpression='SET S_ANSWER_words = :words',
-                            ExpressionAttributeValues={
-                                ':words': s_answer,
-                            }
-                        )
+                        if len(s_answer) > 0:
+                            course_table.update_item(
+                                Key={
+                                    "post_id": post["post_id"]
+                                },
+                                UpdateExpression='SET S_ANSWER_words = :words',
+                                ExpressionAttributeValues={
+                                    ':words': s_answer,
+                                }
+                            )
                     else:
                         words.append(post.get("S_ANSWER_words"))
                     model_pid_list.append(post["post_id"])
@@ -128,16 +129,16 @@ def lambda_handler(event, context):
                         followup_str = stringify_followups(post["followups"])
                         followup_words = ' '.join(spacy_clean(followup_str))
                         words.append(followup_words)
-
-                        course_table.update_item(
-                            Key={
-                                "post_id": post["post_id"]
-                            },
-                            UpdateExpression='SET FOLLOWUP_words = :words',
-                            ExpressionAttributeValues={
-                                ':words': followup_words,
-                            }
-                        )
+                        if len(followup_words) > 0:
+                            course_table.update_item(
+                                Key={
+                                    "post_id": post["post_id"]
+                                },
+                                UpdateExpression='SET FOLLOWUP_words = :words',
+                                ExpressionAttributeValues={
+                                    ':words': followup_words,
+                                }
+                            )
                     else:
                         words.append(post.get("FOLLOWUP_words"))
                     model_pid_list.append(post["post_id"])

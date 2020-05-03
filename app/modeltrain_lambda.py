@@ -100,9 +100,13 @@ class ModelTrain(object):
         end = time.time()
 
         cleaned_posts = json.loads(response['Payload'].read().decode("utf-8"))
-        words = cleaned_posts["words"]
-        model_pid_list = cleaned_posts["model_pid_list"]
-        print("Cleaned {} posts in {} seconds for {}".format(len(model_pid_list), end - start, model_name.name))
+        if "words" in cleaned_posts:
+            words = cleaned_posts["words"]
+            model_pid_list = cleaned_posts["model_pid_list"]
+            print("Cleaned {} posts in {} seconds for {}".format(len(model_pid_list), end - start, model_name.name))
+        else:
+            print(cleaned_posts)
+            raise TimeoutError
 
         return np.array(words), np.array(model_pid_list)
 
