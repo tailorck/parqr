@@ -195,6 +195,7 @@ class Feedback(object):
 
 
 def lambda_handler(event, context):
+    print(event)
     feedback = Feedback(FEEDBACK_MAX_RATING, FEEDBACK_MIN_RATING)
     if event.get("source") == "query":
         similar_posts = event.get("similar_posts")
