@@ -128,9 +128,7 @@ def get_inst_att_needed_posts(course_id, number_of_posts):
         properties = ["{} views".format(post["num_views"])]
 
         if post.get("num_unresolved_followups"):
-            properties.append("{} unresolved followups".format(post["num_unresolved_followups"]))
-        else:
-            properties.append("0 unresolved followups")
+            properties.append("{} unresolved followups".format(post.get("num_unresolved_followups", 0)))
         if post.get("i_answer") is None:
             properties.append("No Instructor answers")
         if post.get("s_answer") is None:
@@ -240,12 +238,12 @@ def get_stud_att_needed_posts(course_id, num_posts):
             "post_id": int(post["post_id"]),
             "subject": post["subject"],
             "date_modified": int(post["created"]),
-            "followups": len(post.get("followups")) if post.get("followups") else 0,
+            "followups": len(post.get("followups", [])),
             "views": int(post["num_views"]),
             "tags": post["tags"],
             "i_answer": True if post.get("i_answer") is not None else False,
             "s_answer": True if post.get("s_answer") is not None else False,
-            "resolved": True if post.get("num_unresolved_followups") and int(post.get("num_unresolved_followups")) == 0 else False
+            "resolved": True if int(post.get("num_unresolved_followups", 0)) == 0 else False
         }
 
         return post_data
@@ -254,7 +252,7 @@ def get_stud_att_needed_posts(course_id, num_posts):
         dictionary = {
             'post_id': [int(post["post_id"]) for post in bqs],
             'created': [datetime.fromtimestamp(int(post["created"])) for post in bqs],
-            'num_followups': [len(post.get("followups")) if post.get("followups") else 0 for post in bqs],
+            'num_followups': [len(post.get("followups", [])) for post in bqs],
             'num_views': [int(post["num_views"]) for post in bqs]
         }
         return pd.DataFrame.from_dict(dictionary)
