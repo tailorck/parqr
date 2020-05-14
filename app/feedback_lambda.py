@@ -60,7 +60,7 @@ class Feedback(object):
         Returns:
             query_rec_id (str): The primary key for query recommendation id in DynamoDB
         """
-        recommended_pids = [similar_posts[score]["pid"] for score in similar_posts.keys()]
+        recommended_pids = [obj["pid"] for obj in similar_posts]
 
         dynamodb = boto3.client('dynamodb')
         query_rec_id = uuid.uuid4()
