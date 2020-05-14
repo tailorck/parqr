@@ -126,4 +126,3 @@ def discounted_cumulative_gain(
                 dcgn[i] /= best_dcgn
 
     return dcgn
->>>>>>> 4ee1b9a097b3b14ea10daba8628f603347d37e80:model_testing/metrics.py

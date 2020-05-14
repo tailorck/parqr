@@ -7,7 +7,7 @@ from itertools import chain
 import numpy as np
 import pandas as pd
 from scipy.sparse import hstack, coo_matrix
-from pytorch_lightning import Trainer
+import pytorch_lightning as pl
 from sklearn.neighbors import KDTree
 import torch
 import torch.nn as nn
@@ -15,10 +15,11 @@ from quora_binary_clf import BasicNN, SiameseNN
 from sklearn.feature_extraction.text import TfidfVectorizer
 from pytorch_lightning import loggers
 
-from src import dataset, metrics, model
+import metrics
+from base import Dataset, Model, Trainer
 
 
-class QuoraDataset(dataset.Dataset):
+class QuoraDataset(Dataset):
     def __init__(self, data_path, train_frac=0.8, data_frac=1.0):
         self._data = pd.read_csv(data_path, delimiter="\t").dropna()
         if data_frac < 1:
@@ -42,7 +43,7 @@ class QuoraDataset(dataset.Dataset):
         return self._test[["question1", "question2"]], self._test["is_duplicate"].values
 
 
-class BasicModel(model.Model):
+class BasicModel(Model):
     def __init__(self, **params):
         self._params = params
         self._tfidf = None
@@ -78,8 +79,8 @@ class BasicModel(model.Model):
 
             # switch these around to use basic or siamese net
             # all models live in quora_binary_clf.py
-            # self._net = BasicNN(self._tfidf.max_features, self._tfidf.max_features)
-            self._net = SiameseNN(self._tfidf.max_features)
+            self._net = BasicNN(self._tfidf.max_features, self._tfidf.max_features)
+            # self._net = SiameseNN(self._tfidf.max_features)
 
             # each forward pass of our networks accepts batches of questions separately
             inp1_tensor = torch.sparse.FloatTensor(
@@ -111,7 +112,7 @@ class BasicModel(model.Model):
 
             # train and test model
             tb_logger = loggers.TensorBoardLogger("logs/")
-            pl_trainer = Trainer(max_epochs=10, weights_summary=None, logger=tb_logger)
+            pl_trainer = pl.Trainer(max_epochs=10, weights_summary=None, logger=tb_logger)
             pl_trainer.fit(self._net, train_dataloader)  # , val_dataloader)
             pl_trainer.save_checkpoint("saved_model.ckpt")
             # NOTE at the moment val_dataset/loader is being used as a test set
@@ -147,7 +148,7 @@ if __name__ == "__main__":
     # NOTE the data_frac set here does matter right now, even for our current testing
     data = QuoraDataset("example/data.tsv", train_frac=0.8, data_frac=0.1)
     rank_model = BasicModel()
-    clf = model.Trainer(rank_model, data)
+    clf = Trainer(rank_model, data)
     clf.run()
     # NOTE we aren't using our metrics for now
     # results = clf.evaluate(
