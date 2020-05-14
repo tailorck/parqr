@@ -43,9 +43,9 @@ class Feedback(object):
             similar_posts (dict): A dictionary of recommendations with the feedback flag set
 
         """
-        for key in similar_posts:
-            similar_posts[key]['feedback'] = True
-        similar_posts['query_rec_id'] = query_rec_id
+        for obj in similar_posts:
+            obj['feedback'] = True
+            obj['query_rec_id'] = query_rec_id
         return similar_posts
 
     def save_query_rec_pair(self, course_id, query, similar_posts):
