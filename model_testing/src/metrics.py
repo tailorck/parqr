@@ -69,6 +69,7 @@ def precision_at_k(rank_pred, y_true: np.ndarray, k: int = 5) -> np.ndarray:
         precision = np.empty(len(rank_pred))
         for i, (pred, true_labeling) in enumerate(zip(rank_pred, y_true)):
             k_i = min(len(pred), k)
+            import pdb; pdb.set_trace()
             precision[i] = true_labeling[pred[:k_i]].sum() / k_i
 
     return precision
