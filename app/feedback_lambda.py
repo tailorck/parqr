@@ -43,9 +43,9 @@ class Feedback(object):
             similar_posts (dict): A dictionary of recommendations with the feedback flag set
 
         """
-        for key in similar_posts:
-            similar_posts[key]['feedback'] = True
-        similar_posts['query_rec_id'] = query_rec_id
+        for post in similar_posts:
+            post['feedback'] = True
+            post['query_rec_id'] = query_rec_id
         return similar_posts
 
     def save_query_rec_pair(self, course_id, query, similar_posts):
@@ -60,10 +60,10 @@ class Feedback(object):
         Returns:
             query_rec_id (str): The primary key for query recommendation id in DynamoDB
         """
-        recommended_pids = [similar_posts[score]["pid"] for score in similar_posts.keys()]
+        recommended_pids = [post["pid"] for post in similar_posts]
 
-        dynamodb = boto3.client('dynamodb')
-        query_rec_id = uuid.uuid4()
+        feedbacks = boto3.resource('dynamodb').Table("Feedbacks")
+        query_rec_id = str(uuid.uuid4())
         query_recommendation_pair = {
             'course_id': course_id,
             'uuid': query_rec_id,
@@ -71,8 +71,7 @@ class Feedback(object):
             'recommended_pids': recommended_pids
         }
 
-        dynamodb.put_item(
-            TableName='Feedbacks',
+        feedbacks.put_item(
             Item=query_recommendation_pair
         )
 
@@ -147,7 +146,8 @@ class Feedback(object):
 
         # If it doesn't exist, return failure
         if not query_rec_pair:
-            dynamodb.put_item(
+            feedbacks = boto3.resource('dynamodb').Table("Feedbacks")
+            feedbacks.put_item(
                 Item={
                     'query_rec_id': query_rec_id,
                     'user_id': user_id,

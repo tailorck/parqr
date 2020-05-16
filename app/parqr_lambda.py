@@ -146,8 +146,8 @@ class Parqr(object):
 
                 # the modified date
                 modified_date = post.get("created").get('N')
-                num_unresolved_followups = post.get("num_unresolved_followups").get('N')
-                followups = post.get("followups").get('L')
+                num_unresolved_followups = post.get("num_unresolved_followups", {"N": 0}).get('N')
+                followups = post.get("followups", {"L": []}).get('L')
                 num_followups = len(followups)
                 resolved = True if not num_unresolved_followups else False
 
@@ -294,6 +294,7 @@ def lambda_handler(event, context):
     print(recs)
 
     if random.random() < 0.1:
+        print("Feedback Requested")
         feedback_payload = {
             "source": "query",
             "course_id": course_id,
