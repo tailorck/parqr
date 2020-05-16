@@ -103,7 +103,6 @@ class Feedback(object):
                 }
             }
         )
-        print(response)
         query_rec_pair = response.get("Item")
         if not query_rec_pair:
             return False, "The query-recommendation id {} does not exist.".format(query_rec_id)
@@ -115,7 +114,7 @@ class Feedback(object):
             return False, "Invalid query string."
 
         # Check that the feedback is for a post that was actually recommended
-        recommended_pids = json.loads(query_rec_pair.get("recommended_pids").get('S'))
+        recommended_pids = [int(post["N"]) for post in query_rec_pair.get("recommended_pids").get('L')]
 
         if feedback_pid not in recommended_pids:
             return False, "The post id {} is not in the list of suggested posts ids {}.".format(feedback_pid,
@@ -165,10 +164,13 @@ class Feedback(object):
                         'S': query_rec_id
                     }
                 },
-                UpdateExpression="set user_rating = :user_rating_val",
+                UpdateExpression="SET user_rating = :user_rating_val, feedback_pid = :pid",
                 ExpressionAttributeValues={
                     ":user_rating_val": {
                         'N': str(user_rating)
+                    },
+                    ":pid": {
+                        'N': str(feedback_pid)
                     }
                 }
             )
