@@ -293,7 +293,7 @@ def lambda_handler(event, context):
     recs = parqr.get_recommendations(course_id, query, N)
     print(recs)
 
-    if random.random() < 0.1:
+    if random.random() < 0.1 and recs:
         print("Feedback Requested")
         feedback_payload = {
             "source": "query",
