@@ -3,19 +3,27 @@ from statistics import mean
 import torch.nn as nn
 from pytorch_lightning.core.lightning import LightningModule
 from sklearn.metrics import precision_score, recall_score, f1_score
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
 
 
 class BasicNN(LightningModule):
+
     def __init__(self, input_size, hidden_size=128, output_size=2):
         super().__init__()
         self.h1 = nn.Linear(2 * input_size, hidden_size)
         self.h2 = nn.Linear(hidden_size, output_size)
 
     def forward(self, q1, q2):
-        X = torch.cat((q1, q2), dim=1)
-        embedding = nn.functional.relu(self.h1(X))
-        return self.h2(embedding), embedding
+        # X = torch.cat((q1, q2), dim=1)
+        # embedding = nn.functional.relu(self.h1(X))
+        # return self.h2(embedding), embedding
+        sim = np.diag(cosine_similarity(q1.to_dense(), q2.to_dense()))
+        out = np.c_[1-sim, sim]
+        return torch.FloatTensor(out), None
 
+    def backward(self, *args):
+        pass
 
     def training_step(self, batch, batch_idx):
         q1, q2, y = batch

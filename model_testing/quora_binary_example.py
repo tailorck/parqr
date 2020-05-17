@@ -112,7 +112,7 @@ class BasicModel(Model):
 
             # train and test model
             tb_logger = loggers.TensorBoardLogger("logs/")
-            pl_trainer = pl.Trainer(max_epochs=10, weights_summary=None, logger=tb_logger)
+            pl_trainer = pl.Trainer(max_epochs=1, weights_summary=None, logger=tb_logger)
             pl_trainer.fit(self._net, train_dataloader)  # , val_dataloader)
             pl_trainer.save_checkpoint("saved_model.ckpt")
             # NOTE at the moment val_dataset/loader is being used as a test set
@@ -146,7 +146,7 @@ class BasicModel(Model):
 
 if __name__ == "__main__":
     # NOTE the data_frac set here does matter right now, even for our current testing
-    data = QuoraDataset("example/data.tsv", train_frac=0.8, data_frac=0.1)
+    data = QuoraDataset("datasets/data.tsv", train_frac=0.8, data_frac=0.25)
     rank_model = BasicModel()
     clf = Trainer(rank_model, data)
     clf.run()
