@@ -13,6 +13,7 @@ import numpy as np
 
 from app.exception import InvalidUsage
 from app.constants import POST_AGE_SIGMOID_OFFSET, POST_MAX_AGE_DAYS
+from app.utils import pretty_date
 
 
 def get_posts_table(course_id):
@@ -90,22 +91,18 @@ def get_inst_att_needed_posts(course_id, number_of_posts):
         if not posts:
             raise InvalidUsage('Invalid course id provided')
 
-        DATE_CUTOFF = int(datetime.timestamp(datetime.now() + timedelta(days=-21)))
-
         try:
             start = time.time()
             response = posts.scan(
-                FilterExpression=Attr("post_type").eq("question") &
-                                 ~Attr("tags").contains("instructor-question") &
-                                 Attr("created").gt(DATE_CUTOFF)
+                FilterExpression=Attr("resolved").eq(False) &
+                                 ~Attr("tags").contains("instructor-question")
             )
             filtered_posts = response.get("Items")
 
             while 'LastEvaluatedKey' in response:
                 response = posts.scan(
-                    FilterExpression=Attr("post_type").eq("question") &
-                                     ~Attr("tags").contains("instructor-question") &
-                                     Attr("created").gt(DATE_CUTOFF),
+                    FilterExpression=Attr("resolved").eq(False) &
+                                     ~Attr("tags").contains("instructor-question"),
                     ExclusiveStartKey=response['LastEvaluatedKey']
                 )
                 filtered_posts.extend(response['Items'])
@@ -121,22 +118,23 @@ def get_inst_att_needed_posts(course_id, number_of_posts):
               .format(len(response), (time.time() - start) * 1000))
 
     def _create_top_post(post):
-        post_data = {"title": post["subject"], "post_id": int(post["post_id"])}
+        post_data = {
+            "title": post["subject"],
+            "post_id": int(post["post_id"]),
+            "num_views": int(post["num_views"]),
+            "num_updates": int(post.get("num_updates", 0)),
+            "num_unresolved_followups": int(post.get("num_unresolved_followups", 0)),
+            "i_answer": True if post.get("i_answer") else False,
+            "s_answer": True if post.get("s_answer") else False,
+            "tags": post.get("tags"),
+            "last_modified": int(post.get("created")),
+            "pretty_date": pretty_date(int(post.get("created"))),
+            "assignees": post.get("assignees", []),
+            "good_questions": int(post.get("num_good_questions", 0)),
+            "num_words": len(post.get("body", "").split()),
+            "resolved": bool(post.get("resolved")) if post.get("resolved") else False
+        }
 
-        # properties includes [# unresolved followups, # views,
-        #                      has_instructor_answer, has_student_answer, tags]
-        properties = ["{} views".format(post["num_views"])]
-
-        if post.get("num_unresolved_followups"):
-            properties.append("{} unresolved followups".format(post.get("num_unresolved_followups", 0)))
-        if post.get("i_answer") is None:
-            properties.append("No Instructor answers")
-        if post.get("s_answer") is None:
-            properties.append("No Student answers")
-        if post.get("tags") is not None:
-            properties.append("Tags - {}".format(", ".join(post["tags"])))
-
-        post_data["properties"] = properties
         return post_data
 
     if len(filtered_posts) <= number_of_posts:

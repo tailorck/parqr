@@ -69,6 +69,26 @@ def get_course_table(course_id):
     return course_table
 
 
+def get_num_updates(post, network):
+    # Search through log to see how many updates there have been
+    # since the most recent professor/ta post
+
+    counter = 0
+    for entry in post["log"][::-1]:
+        user = entry.get("u", "anon")
+        if user != "anon":
+            role = network.get_users([user])[0].get("role")
+        else:
+            role = "anon"
+
+        if role not in ["professor", "ta"]:
+            counter += 1
+        else:
+            break
+
+    return counter
+
+
 class Parser(object):
 
     def __init__(self):
@@ -222,7 +242,10 @@ class Parser(object):
                     "i_answer": i_answer,
                     "followups": followups,
                     "num_unresolved_followups": num_unresolved_followups,
-                    "num_views": num_views
+                    "num_views": num_views,
+                    "num_updates": get_num_updates(post, network),
+                    "num_good_questions": post.get("gd", 0),
+                    "resolved": False
                 }
                 cleaned_item = {k: v for k, v in item.items() if v}
                 try:

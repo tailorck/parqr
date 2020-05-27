@@ -9,6 +9,7 @@ from app.resources.course import (
     FindCourseByCourseID
 )
 from app.resources.event import Event
+from app.resources.assign import AssignInstructor, ResolvePost
 from app.resources.query import InstructorQuery
 from app.resources.recommendations import StudentRecommendations, InstructorRecommendations
 from app.resources.user import Users
@@ -39,6 +40,9 @@ api.add_resource(ActiveCourse, api_endpoint + 'courses/<string:course_id>/active
 
 api.add_resource(StudentRecommendations, api_endpoint + 'courses/<string:course_id>/recommendation/student')
 api.add_resource(InstructorRecommendations, api_endpoint + 'courses/<string:course_id>/recommendation/instructor')
+
+api.add_resource(AssignInstructor, api_endpoint + 'courses/<string:course_id>/assign')
+api.add_resource(ResolvePost, api_endpoint + 'courses/<string:course_id>/resolve')
 
 api.add_resource(Event, api_endpoint + 'event')
 api.add_resource(Feedbacks, api_endpoint + 'feedback')
