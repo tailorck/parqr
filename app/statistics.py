@@ -1,18 +1,17 @@
-import platform
-
-import simplejson as json
-from datetime import datetime, timedelta
-import time
 import os
+import platform
+import time
+from datetime import datetime, timedelta
 
+import boto3
+import numpy as np
+import pandas as pd
+import simplejson as json
 from boto3.dynamodb.conditions import Attr
 from botocore.exceptions import ClientError
-import boto3
-import pandas as pd
-import numpy as np
 
+from app.constants import DATETIME_FORMAT, POST_AGE_SIGMOID_OFFSET, POST_MAX_AGE_DAYS
 from app.exception import InvalidUsage
-from app.constants import POST_AGE_SIGMOID_OFFSET, POST_MAX_AGE_DAYS
 from app.utils import pretty_date
 
 
@@ -33,7 +32,7 @@ def get_courses_table():
 
 def _validate_starting_time(starting_time):
     current_time = int(time.time())
-    return True if (current_time > starting_time) else False
+    return current_time > starting_time
 
 
 def events_bqs_to_df(bqs):
@@ -314,3 +313,60 @@ def get_stud_att_needed_posts(course_id, num_posts):
         )
     )
     return retval
+
+
+def avg_response_time(self, course_id, t_start, t_end, include_s_answer=False):
+    """Computes the average response time over an interval, defined
+    as the average time between a question being asked and an answer to that question
+    first being posted
+
+    Parameters
+    ----------
+    course_id : str
+    t_start : datetime or str
+        beginning of time interval, if str should be a valid timestamp in the form %Y-%m-%dT%H:%M:%SZ
+    t_end : datetime or str
+        end of time interval, if str should be a valid timestamp
+    include_s_answer : bool, optional, default False
+        whether or not to consider posts with student answers as "answered". If a question
+        has both instructor and student answers, the instructor answer is used
+
+    Returns
+    -------
+    avg_response_time : float
+        avg response time, or infinity if no posts were answered during the interval
+    support : float
+        the number of samples which contributed to the avg response time
+    """
+    if isinstance(t_start, str):
+        t_start = datetime.strptime(t_start, DATETIME_FORMAT)
+    if isinstance(t_end, str):
+        t_end = datetime.strptime(t_end, DATETIME_FORMAT)
+
+    posts_table = get_posts_table(course_id)
+    if not posts:
+        raise InvalidUsage("Invalid course id provided")
+
+    cond_answered = Attr("i_answer").exists()
+    if include_s_answer:
+        cond_answered |= Attr("s_answer").exists()
+
+    # TODO should I also be filtering out notes?
+    answered_posts = posts_table.scan(
+        FilterExpression=(
+            Attr("created").between(t_start, t_end)
+            & ~Attr("tags").contains("instructor-question")
+            & cond_answered
+        )
+    ).get("Items")
+
+    response_times = []
+    for post in answered_posts:
+        if post["i_answer"] is not None:
+            response_times.append(post["i_answer_created"] - post["created"])
+        elif include_s_answer and post["s_answer"] is not None:
+            response_times.append(post["s_answer_created"] - post["created"])
+        else:
+            raise ValueError("An unanswered post passed the filter?")
+    
+    return sum(response_times) / len(response_times), len(response_times)
