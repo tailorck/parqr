@@ -226,6 +226,14 @@ class Parser(object):
             # Extract the student and instructor answers if applicable
             s_answer, i_answer = self._extract_answers(post)
 
+            # Extract the student and instructor answer metadata
+            (
+                s_answer_created,
+                i_answer_created,
+                s_answer_uid,
+                i_answer_uid,
+            ) = self._extract_answer_metadata(post)
+
             # Extract the followups and feedbacks if applicable
             followups = self._extract_followups(post)
 
@@ -237,7 +245,11 @@ class Parser(object):
                 "tags": tags,
                 "post_type": post_type,
                 "s_answer": s_answer,
+                "s_answer_created": s_answer_created,
+                "s_answer_uid": s_answer_uid,
                 "i_answer": i_answer,
+                "i_answer_created": i_answer_created,
+                "i_answer_uid": i_answer_uid,
                 "followups": followups,
                 "num_unresolved_followups": num_unresolved_followups,
                 "num_views": num_views,
@@ -423,6 +435,45 @@ class Parser(object):
                 followups.append(data)
 
         return followups
+
+    def _extract_answer_metadata(self, post):
+        """ Retrieves the metadata of the post's answer. I.e when was it answered? By whom?
+        Note this currently doesn't consider any updates made to the answers
+
+        Parameters
+        ----------
+        post : dict
+            An object including the post information retrieved from a
+            piazza_api call
+
+        Returns
+        -------
+        s_answer_created : datetime or None
+           timestamp in the changelog corresponding to when the student answer was posted
+           or None if it doesn't exist
+        i_answer_created : datetime or None
+           timestamp in the changelog corresponding to when the instructor answer was posted
+           or None if it doesn't exist
+        s_answer_uid : str or None
+           uid corresponding to the student answerer, or None if the answer doesn't exist or is anonymous
+        i_answer_uid : str or None
+           uid corresponding to the instructor answerer, or None if the answer doesn't exist
+        """
+        # TODO where do you want this constant?
+        s_answer_created = None
+        i_answer_created = None
+        s_answer_uid = None
+        i_answer_uid = None
+
+        for change in post["change_log"]:
+            if change["type"] == "i_answer":
+                i_answer_created = datetime.strptime(change["when"], DATETIME_FORMAT)
+                i_answer_uid = change["uid"]
+            elif change["type"] == "s_answer":
+                s_answer_created = datetime.strptime(change["when"], DATETIME_FORMAT)
+                s_answer_uid = change["uid"]
+
+        return s_answer_created, i_answer_created, s_answer_uid, i_answer_uid
 
 
 def lambda_handler(event, context):
