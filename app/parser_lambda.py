@@ -36,9 +36,9 @@ def get_course_table(course_id):
             # If course table doesn't exist, make a new table
             dynamodb.create_table(
                 TableName=course_id,
-                KeySchema=[{"AttributeName": "post_id", "KeyType": "HASH",}],
+                KeySchema=[{"AttributeName": "post_id", "KeyType": "HASH", }],
                 AttributeDefinitions=[
-                    {"AttributeName": "post_id", "AttributeType": "N",}
+                    {"AttributeName": "post_id", "AttributeType": "N", }
                 ],
                 ProvisionedThroughput={"ReadCapacityUnits": 5, "WriteCapacityUnits": 5},
             )
@@ -54,21 +54,25 @@ def get_course_table(course_id):
 def get_num_updates(post, network):
     # Search through log to see how many updates there have been
     # since the most recent professor/ta post
-
     counter = 0
-    for entry in post["log"][::-1]:
-        user = entry.get("u", "anon")
+    if not post.get("change_log"):
+        print("No log for post {}".format(post.get("nr")))
+        return 0
+    for entry in post["change_log"][::-1]:
+        user = entry.get("uid", "anon")
         if user != "anon":
             role = network.get_users([user])[0].get("role")
         else:
             role = "anon"
-
         if role not in ["professor", "ta"]:
             counter += 1
         else:
             break
-
     return counter
+
+
+def get_boto3_s3():
+    return boto3.client('s3')
 
 
 class Parser(object):
@@ -114,6 +118,14 @@ class Parser(object):
                 course["stats"]["num_posts"] = stats.get("num_posts")
                 course["stats"]["num_students"] = stats.get("num_students")
                 course["stats"]["num_parqr_users"] = len(stats.get("parqr_users", []))
+
+        s3 = get_boto3_s3()
+
+        s3.put_object(
+            Bucket='parqr',
+            Key='courses.json',
+            Body=bytes(json.dumps(enrolled_courses), encoding='utf8')
+        )
         return enrolled_courses
 
     def update_posts(self, course_id):
@@ -171,93 +183,101 @@ class Parser(object):
 
         current_pids = set()
         start_time = time.time()
-        with posts.batch_writer() as batch:
-            for pid in pids:
-                # Get the post if available
-                try:
-                    post = network.get_post(pid)
-                except RequestError:
-                    all_pids.discard(pid)
-                    continue
-
-                # Skip deleted and private posts
-                if post["status"] == "deleted" or post["status"] == "private":
-                    if pid in previous_all_pids:
-                        print(
-                            "Deleted post with pid {} and course id {} from Posts".format(
-                                pid, course_id
-                            )
-                        )
-                        all_pids.discard(pid)
-                        previous_all_pids.discard(pid)
-                        batch.delete_item(
-                            Key={"post_id": pid,}
-                        )
-                    continue
-
-                # If the post is neither deleted nor private, it should be in the db
-                current_pids.add(pid)
-
-                # TODO: Parse the type of the post, to indicate if the post is
-                # a note/announcement
-
-                # Extract the subject, body, and tags from post
-                subject, body, tags, post_type = self._extract_question_details(post)
-
-                # Extract number of unique views of the post
-                num_views = post["unique_views"]
-
-                # Get creation and last modified time
-                created = datetime.strptime(post["created"], DATETIME_FORMAT)
-                # Extract number of unresolved followups (if any)
-                num_unresolved_followups = self._extract_num_unresolved(post)
-
-                # Extract the student and instructor answers if applicable
-                s_answer, i_answer = self._extract_answers(post)
-
-                # Extract the followups and feedbacks if applicable
-                followups = self._extract_followups(post)
-
-                # insert post and add to course's post list
-                item = {
-                    "post_id": pid,
-                    "created": int(created.timestamp()),
-                    "subject": subject,
-                    "body": body,
-                    "tags": tags,
-                    "post_type": post_type,
-                    "s_answer": s_answer,
-                    "i_answer": i_answer,
-                    "followups": followups,
-                    "num_unresolved_followups": num_unresolved_followups,
-                    "num_views": num_views,
-                    "num_updates": get_num_updates(post, network),
-                    "num_good_questions": post.get("gd", 0),
-                    "resolved": False,
-                }
-                cleaned_item = {k: v for k, v in item.items() if v}
-                try:
-                    batch.put_item(Item=cleaned_item)
-                    train = True
-                except ClientError as e:
-                    print(pid, cleaned_item)
-                    print(e)
-                    current_pids.discard(pid)
-                    all_pids.discard(pid)
-                    continue
-
-            deleted_pids = previous_all_pids - all_pids
-            for pid in deleted_pids:
+        for pid in pids:
+            # Get the post if available
+            try:
+                post = network.get_post(pid)
+            except RequestError:
                 all_pids.discard(pid)
-                print(
-                    "Deleted post with pid {} and course id {} from Posts".format(
-                        pid, course_id
+                continue
+
+            # Skip deleted and private posts
+            if post["status"] == "deleted" or post["status"] == "private":
+                if pid in previous_all_pids:
+                    print(
+                        "Deleted post with pid {} and course id {} from Posts".format(
+                            pid, course_id
+                        )
                     )
-                )
-                batch.delete_item(
-                    Key={"post_id": pid,}
+                    all_pids.discard(pid)
+                    previous_all_pids.discard(pid)
+                    posts.delete_item(
+                        Key={"post_id": pid}
+                    )
+                continue
+
+            # If the post is neither deleted nor private, it should be in the db
+            current_pids.add(pid)
+
+            # TODO: Parse the type of the post, to indicate if the post is
+            # a note/announcement
+
+            # Extract the subject, body, and tags from post
+            subject, body, tags, post_type = self._extract_question_details(post)
+
+            # Extract number of unique views of the post
+            num_views = post["unique_views"]
+
+            # Get creation and last modified time
+            created = datetime.strptime(post["created"], DATETIME_FORMAT)
+            # Extract number of unresolved followups (if any)
+            num_unresolved_followups = self._extract_num_unresolved(post)
+
+            # Extract the student and instructor answers if applicable
+            s_answer, i_answer = self._extract_answers(post)
+
+            # Extract the followups and feedbacks if applicable
+            followups = self._extract_followups(post)
+
+            # insert post and add to course's post list
+            item = {
+                "created": int(created.timestamp()),
+                "subject": subject,
+                "body": body,
+                "tags": tags,
+                "post_type": post_type,
+                "s_answer": s_answer,
+                "i_answer": i_answer,
+                "followups": followups,
+                "num_unresolved_followups": num_unresolved_followups,
+                "num_views": num_views,
+                "num_updates": get_num_updates(post, network),
+                "num_good_questions": post.get("gd", 0),
+                "resolved": True if num_unresolved_followups == 0 and (s_answer or i_answer) else False,
+            }
+            cleaned_item = {k: v for k, v in item.items() if v}
+            update_expression = "SET " + ", ".join([" = :".join([key, key]) for key in cleaned_item.keys()])
+            attribute_values = {}
+            for k, v in cleaned_item.items():
+                attribute_values[":" + k] = v
+            try:
+                posts.update_item(
+                    Key={
+                        "post_id": pid,
+                    },
+                    UpdateExpression=update_expression,
+                    ExpressionAttributeValues=attribute_values
                 )
                 train = True
+            except ClientError as e:
+                print(pid, cleaned_item)
+                print(e)
+                current_pids.discard(pid)
+                all_pids.discard(pid)
+                continue
+
+        deleted_pids = previous_all_pids - all_pids
+        for pid in deleted_pids:
+            all_pids.discard(pid)
+            print(
+                "Deleted post with pid {} and course id {} from Posts".format(
+                    pid, course_id
+                )
+            )
+            posts.delete_item(
+                Key={"post_id": pid, }
+            )
+            train = True
 
         # TODO: Figure out another way to verify whether the current user has access to a class.
         # In the event the course_id was invalid or no posts were parsed, delete course object
@@ -285,7 +305,7 @@ class Parser(object):
         courses.update_item(
             Key={"course_id": course_id},
             UpdateExpression="SET #pids = :pids, num_students = :num_students, "
-            "num_posts = :num_posts, last_modified = :last_modified",
+                             "num_posts = :num_posts, last_modified = :last_modified",
             ExpressionAttributeNames={"#pids": "all_pids"},
             ExpressionAttributeValues={
                 ":pids": all_pids,
@@ -418,6 +438,7 @@ def lambda_handler(event, context):
     print("Course ID: {}".format(course_id))
 
     parser = Parser()
+    parser.get_stats_for_enrolled_courses()
     success, train = parser.update_posts(course_id)
     if success:
         print("Successfully parsed")

@@ -53,7 +53,7 @@ def pretty_date(time=False):
     if day_diff < 7:
         return str(day_diff) + "d ago"
     if day_diff < 31:
-        return str(day_diff / 7) + "w ago"
+        return str(round(day_diff / 7)) + "w ago"
     if day_diff < 365:
-        return str(day_diff / 30) + "mon ago"
-    return str(day_diff / 365) + "y ago"
+        return str(round(day_diff / 30)) + "mon ago"
+    return str(round(day_diff / 365)) + "y ago"
