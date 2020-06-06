@@ -14,6 +14,7 @@ from app.constants import (
     SCORE_THRESHOLD,
     COURSE_MODEL_RELOAD_DELAY_S
 )
+from app.utils import pretty_date
 
 lambda_client = boto3.client('lambda')
 
@@ -160,7 +161,8 @@ class Parqr(object):
                     'feedback': False,
                     'modified_date': modified_date,
                     'num_followups': num_followups,
-                    'resolved': resolved
+                    'resolved': resolved,
+                    "pretty_date": pretty_date(int(modified_date)),
                 })
         print("Generated {} Top Posts in {} ms"
               .format(len(top_posts), (time.time() - start_top_posts) * 1000 - get_items_time))

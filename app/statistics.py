@@ -16,6 +16,13 @@ from app.constants import POST_AGE_SIGMOID_OFFSET, POST_MAX_AGE_DAYS
 from app.utils import pretty_date
 
 
+class SetEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, set):
+            return list(obj)
+        return json.JSONEncoder.default(self, obj)
+
+
 def get_posts_table(course_id):
     dynamodb = boto3.resource("dynamodb")
     posts_table = dynamodb.Table(course_id)
@@ -99,14 +106,14 @@ def get_inst_att_needed_posts(course_id, number_of_posts):
         try:
             start = time.time()
             response = posts.scan(
-                FilterExpression=Attr("resolved").eq(False)
+                FilterExpression=~Attr("resolved").eq(True)
                 & ~Attr("tags").contains("instructor-question")
             )
             filtered_posts = response.get("Items")
 
             while "LastEvaluatedKey" in response:
                 response = posts.scan(
-                    FilterExpression=Attr("resolved").eq(False)
+                    FilterExpression=~Attr("resolved").eq(True)
                     & ~Attr("tags").contains("instructor-question"),
                     ExclusiveStartKey=response["LastEvaluatedKey"],
                 )
@@ -117,7 +124,7 @@ def get_inst_att_needed_posts(course_id, number_of_posts):
 
         if "Linux" in platform.platform():
             with open(filename, "w") as json_file:
-                json.dump(filtered_posts, json_file)
+                json.dump(filtered_posts, json_file, cls=SetEncoder)
 
         print(
             "Retrieved {} Posts from DDB in {} ms".format(
@@ -137,7 +144,7 @@ def get_inst_att_needed_posts(course_id, number_of_posts):
             "tags": post.get("tags"),
             "last_modified": int(post.get("created")),
             "pretty_date": pretty_date(int(post.get("created"))),
-            "assignees": post.get("assignees", []),
+            "assignees": list(post.get("assignees", [])),
             "good_questions": int(post.get("num_good_questions", 0)),
             "num_words": len(post.get("body", "").split()),
             "resolved": bool(post.get("resolved")) if post.get("resolved") else False,
@@ -164,7 +171,7 @@ def get_inst_att_needed_posts(course_id, number_of_posts):
     # questions and views
     filtered_posts = sorted(
         filtered_posts,
-        key=lambda a: (a.get("num_unresolved_followups"), a.get("num_views")),
+        key=lambda a: (a.get("num_unresolved_followups", 0), a.get("num_views", 0)),
     )
     n_posts = min(len(filtered_posts), number_of_posts)
     return list(map(_create_top_post, filtered_posts[:n_posts]))
@@ -262,6 +269,7 @@ def get_stud_att_needed_posts(course_id, num_posts):
             "followups": len(post.get("followups", [])),
             "views": int(post["num_views"]),
             "tags": post["tags"],
+            "pretty_date": pretty_date(int(post.get("created"))),
             "i_answer": True if post.get("i_answer") is not None else False,
             "s_answer": True if post.get("s_answer") is not None else False,
             "resolved": True
