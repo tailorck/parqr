@@ -16,5 +16,5 @@ class StudentRecommendations(Resource):
 class InstructorRecommendations(Resource):
 
     def get(self, course_id):
-        posts = get_inst_att_needed_posts(course_id, 5)
+        posts = get_inst_att_needed_posts(course_id, 99999)
         return {'message': 'success', 'recommendations': posts}, 200
