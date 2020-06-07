@@ -19,7 +19,7 @@ class ResolvePost(Resource):
             Key={
                 "post_id": int(post_id)
             },
-            UpdateExpression="SET resolved :resolved",
+            UpdateExpression="SET resolved = :resolved",
             ExpressionAttributeValues={
                 ":resolved": resolved
             }
