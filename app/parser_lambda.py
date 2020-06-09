@@ -588,10 +588,10 @@ class Parser(object):
 
         for change in post["change_log"]:
             if change["type"] == "i_answer":
-                i_answer_created = datetime.strptime(change["when"], DATETIME_FORMAT)
+                i_answer_created = int(datetime.strptime(change["when"], DATETIME_FORMAT).timestamp())
                 i_answer_uid = change["uid"]
             elif change["type"] == "s_answer":
-                s_answer_created = datetime.strptime(change["when"], DATETIME_FORMAT)
+                s_answer_created = int(datetime.strptime(change["when"], DATETIME_FORMAT).timestamp())
                 s_answer_uid = change["uid"]
 
         return s_answer_created, i_answer_created, s_answer_uid, i_answer_uid
