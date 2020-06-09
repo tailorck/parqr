@@ -1,6 +1,7 @@
 from flask import request
 from flask_restful import Resource
 import boto3
+import os
 
 
 def get_posts_table(course_id):
@@ -24,6 +25,10 @@ class ResolvePost(Resource):
                 ":resolved": resolved
             }
         )
+
+        filename = "".join(["/tmp/", course_id, ".json"])
+        if os.path.exists(filename):
+            os.remove(filename)
 
         return {'message': 'success'}, 200
 
@@ -57,5 +62,9 @@ class AssignInstructor(Resource):
                     ":assignee": {assignee}
                 }
             )
+
+        filename = "".join(["/tmp/", course_id, ".json"])
+        if os.path.exists(filename):
+            os.remove(filename)
 
         return {'message': 'success'}, 200

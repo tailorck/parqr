@@ -1,14 +1,21 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import base64
 
 import boto3
+import numpy as np
+import pandas as pd
+from boto3.dynamodb.conditions import Attr
 from botocore.exceptions import ClientError
 import json
 
 from bs4 import BeautifulSoup
 from piazza_api import Piazza
 from piazza_api.exceptions import AuthenticationError, RequestError
+
+from app.constants import POST_MAX_AGE_DAYS, POST_AGE_SIGMOID_OFFSET
+from app.exception import InvalidUsage
+from app.utils import pretty_date
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 dynamodb = boto3.client("dynamodb")
@@ -49,6 +56,120 @@ def get_course_table(course_id):
     course_table = boto3.resource("dynamodb").Table(course_id)
     course_table.wait_until_exists()
     return course_table
+
+
+def update_student_recs(course_id, num_posts=5):
+    posts = get_course_table(course_id)
+    if not posts:
+        raise InvalidUsage("Invalid course id provided")
+
+    now = datetime.now()
+    max_age_date = int(
+        datetime.timestamp(now - timedelta(hours=POST_MAX_AGE_DAYS * 24))
+    )
+    print(max_age_date)
+
+    start = time.time()
+    try:
+        response = posts.scan(
+            FilterExpression=Attr("post_type").eq("question")
+                             & ~Attr("tags").contains("instructor-question")
+                             & Attr("created").gt(max_age_date)
+        )
+        filtered_posts = response.get("Items")
+
+        while "LastEvaluatedKey" in response:
+            response = posts.scan(
+                FilterExpression=Attr("post_type").eq("question")
+                                 & ~Attr("tags").contains("instructor-question")
+                                 & Attr("created").gt(max_age_date),
+                ExclusiveStartKey=response["LastEvaluatedKey"],
+            )
+            filtered_posts.extend(response["Items"])
+    except ClientError as ce:
+        print(ce)
+        return []
+
+    print(
+        "Retrieved {} Posts from DDB in {} ms".format(
+            len(filtered_posts), (time.time() - start) * 1000
+        )
+    )
+
+    if len(filtered_posts) == 0:
+        print(
+            "No posts found since {} for course_id {}".format(max_age_date, course_id)
+        )
+        return []
+
+    def _create_top_post(post):
+        post_data = {
+            "post_id": int(post["post_id"]),
+            "subject": post["subject"],
+            "date_modified": int(post["created"]),
+            "followups": len(post.get("followups", [])),
+            "views": int(post["num_views"]),
+            "tags": post["tags"],
+            "pretty_date": pretty_date(int(post.get("created"))),
+            "i_answer": True if post.get("i_answer") is not None else False,
+            "s_answer": True if post.get("s_answer") is not None else False,
+            "resolved": True
+            if int(post.get("num_unresolved_followups", 0)) == 0
+            else False,
+        }
+
+        return post_data
+
+    def _posts_bqs_to_df(bqs):
+        dictionary = {
+            "post_id": [int(post["post_id"]) for post in bqs],
+            "created": [datetime.fromtimestamp(int(post["created"])) for post in bqs],
+            "num_followups": [len(post.get("followups", [])) for post in bqs],
+            "num_views": [int(post["num_views"]) for post in bqs],
+        }
+        return pd.DataFrame.from_dict(dictionary)
+
+    def _sigmoid(x, lookback, y_axis_flip=False):
+        exponential = np.exp((-1) ** y_axis_flip) * (x - lookback)
+        return exponential / (1 + exponential)
+
+    def _min_max_norm(x):
+        x = x + 1
+        return x / (x.max() - x.min())
+
+    print("{} filtered posts".format(len(filtered_posts)))
+    start = time.time()
+    posts_df = _posts_bqs_to_df(filtered_posts)
+    posts_df.created = posts_df.created.fillna(posts_df.created.min())
+    posts_age = now - posts_df.created
+    posts_df["norm_created"] = _sigmoid(
+        posts_age.dt.days, POST_AGE_SIGMOID_OFFSET, True
+    )
+    posts_df["norm_num_followups"] = _min_max_norm(posts_df.num_followups)
+    posts_df["norm_num_views"] = _min_max_norm(posts_df.num_views)
+    posts_df["importance"] = (
+            posts_df.norm_created * posts_df.norm_num_followups * posts_df.norm_num_views
+    )
+
+    posts_df = posts_df.sort_values(by="importance", ascending=False)
+    filtered_posts_ids = list(posts_df.head(num_posts).post_id)
+    top_posts = [
+        post for post in filtered_posts if post["post_id"] in filtered_posts_ids
+    ]
+    retval = list(map(_create_top_post, top_posts))
+    print(
+        "{} Recommended Posts in {} ms".format(
+            len(retval), (time.time() - start) * 1000
+        )
+    )
+
+    s3 = get_boto3_s3()
+
+    s3.put_object(
+        Bucket='parqr',
+        Key='{}.json'.format(course_id),
+        Body=bytes(json.dumps(retval), encoding='utf8')
+    )
 
 
 def get_num_updates(post, network):
@@ -173,7 +294,7 @@ class Parser(object):
                 post["nr"]
                 for post in feed
                 if datetime.strptime(post["modified"], DATETIME_FORMAT).timestamp()
-                > last_modified
+                   > last_modified
             ]
         except KeyError:
             print("Unable to get feed for course_id: {}".format(course_id))
@@ -487,6 +608,7 @@ def lambda_handler(event, context):
     else:
         course_id = event["course_id"]
     print("Course ID: {}".format(course_id))
+    update_student_recs(course_id)
 
     parser = Parser()
     parser.get_stats_for_enrolled_courses()
