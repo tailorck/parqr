@@ -39,6 +39,10 @@ def get_courses_table():
     return dynamodb.Table("Courses")
 
 
+def get_s3():
+    return boto3.client('s3')
+
+
 def _validate_starting_time(starting_time):
     current_time = int(time.time())
     return True if (current_time > starting_time) else False
@@ -211,7 +215,7 @@ def get_stud_att_needed_posts(course_id, num_posts):
         )
     else:
         try:
-            boto3.client('s3').download_file("parqr", course_id + ".json", filename)
+            get_s3().download_file("parqr", course_id + ".json", filename)
         except botocore.exceptions.ClientError as e:
             print("Could not find recs for cid '{}'".format(course_id))
             return []

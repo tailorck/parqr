@@ -88,39 +88,5 @@ class TestActiveCourseAPI(unittest.TestCase):
         assert res.data == self.res_data
 
 
-def mock_get_posts_table(course_id):
-    mock_boto3 = mock.Mock()
-    mock_boto3.scan.return_value = {
-        "Items": [
-            {
-                'subject': 'oh henlo',
-                'post_type': 'question',
-                'num_unresolved_followups': Decimal('0'),
-                'followups': [],
-                'course_id': 'j8rf9vx65vl23t',
-                'post_id': Decimal('18'),
-                'created': Decimal('1581482976'),
-                'num_views': Decimal('2'),
-                'tags': ['hw4', 'student', 'unanswered'],
-                'body': 'wassup'
-            }
-        ]
-    }
-    return mock_boto3
-
-
-class TestStudentRecommendationAPI(unittest.TestCase):
-    def setUp(self):
-        self.env = mock.patch.dict('os.environ', {'stage': 'prod'})
-        with self.env:
-            from app import api
-            self.test_app = api.app.test_client()
-
-    @mock.patch('app.statistics.get_posts_table', side_effect=mock_get_posts_table)
-    def test_get(self, mock_get_posts_table_function):
-        res = self.test_app.get('/prod/courses/j8rf9vx65vl23t/recommendation/student')
-        assert json.loads(res.data)["message"] == "success"
-
-
 if __name__ == "__main__":
     unittest.main()
