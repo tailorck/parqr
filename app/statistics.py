@@ -344,19 +344,20 @@ def avg_response_time(self, course_id, t_start, t_end, include_s_answer=False):
         t_end = datetime.strptime(t_end, DATETIME_FORMAT)
 
     posts_table = get_posts_table(course_id)
-    if not posts:
+    if not posts_table:
         raise InvalidUsage("Invalid course id provided")
 
     cond_answered = Attr("i_answer").exists()
     if include_s_answer:
         cond_answered |= Attr("s_answer").exists()
 
-    # TODO should I also be filtering out notes?
+    cond_ignore_tags = ~Attr("tags").contains("instructor-question")
+    for tag in ("instructor-question", "announcement", "instructor-note", "note"):
+        cond_ignore_tags &= ~Attr("tags").contains(tag)
+
     answered_posts = posts_table.scan(
         FilterExpression=(
-            Attr("created").between(t_start, t_end)
-            & ~Attr("tags").contains("instructor-question")
-            & cond_answered
+            Attr("created").between(t_start, t_end) & cond_ignore_tags & cond_answered
         )
     ).get("Items")
 
@@ -366,7 +367,5 @@ def avg_response_time(self, course_id, t_start, t_end, include_s_answer=False):
             response_times.append(post["i_answer_created"] - post["created"])
         elif include_s_answer and post["s_answer"] is not None:
             response_times.append(post["s_answer_created"] - post["created"])
-        else:
-            raise ValueError("An unanswered post passed the filter?")
-    
+
     return sum(response_times) / len(response_times), len(response_times)
