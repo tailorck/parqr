@@ -1,4 +1,5 @@
 import json
+import os
 import time
 
 import boto3
@@ -15,18 +16,28 @@ def get_boto3_lambda():
     return boto3.client('lambda')
 
 
-def get_enrolled_courses_from_piazza():
-    lambda_client = get_boto3_lambda()
+def get_boto3_s3():
+    return boto3.client('s3')
 
-    payload = {
-        "source": "parqr-api"
-    }
-    response = lambda_client.invoke(
-        FunctionName='Parser:PROD',
-        InvocationType='RequestResponse',
-        Payload=bytes(json.dumps(payload), encoding='utf8')
-    )
-    return json.loads(response['Payload'].read().decode("utf-8"))
+
+def get_enrolled_courses_from_piazza():
+    if os.path.exists("/tmp/courses.json"):
+        print("Loading courses found in /tmp")
+        with open("/tmp/courses.json", "rb") as input_file:
+            courses = json.load(input_file)
+            return courses
+    else:
+        s3 = get_boto3_s3()
+
+        response = s3.get_object(
+            Bucket='parqr',
+            Key='courses.json'
+        )
+        courses = json.loads(response['Body'].read().decode("utf-8"))
+        with open("/tmp/courses.json", "wb") as input_file:
+            courses = json.dump(courses, input_file)
+
+        return courses
 
 
 def mark_active_courses(course_list):
@@ -114,7 +125,10 @@ class ActiveCourse(Resource):
                 active_course = course
 
         if not active_course:
-            return {'message': 'Course is not enrolled.'}, 400
+            return {
+                       "course_id": course_id,
+                       "active": False
+                   }, 200
 
         return active_course, 200
 
@@ -146,9 +160,9 @@ class ActiveCourse(Resource):
             )
             print("Course already registered in PARQR")
             return {
-                'course_id': course_id,
-                "active": True
-            }, 200
+                       'course_id': course_id,
+                       "active": True
+                   }, 200
         except cloudwatch_events.exceptions.ResourceNotFoundException:
             pass
 
@@ -186,9 +200,18 @@ class ActiveCourse(Resource):
             print("Error putting cloudwatch event target")
             return {'message': 'Internal Server Error'}, 500
 
+        payload = {
+            "source": "parqr-api"
+        }
+        lambda_client.invoke(
+            FunctionName='Parser:PROD',
+            InvocationType='Event',
+            Payload=bytes(json.dumps(payload), encoding='utf8')
+        )
+
         response = {
-           'course_id': course_id,
-           "active": True
+            'course_id': course_id,
+            "active": True
         }
         return response, 200
 
@@ -202,10 +225,20 @@ class ActiveCourse(Resource):
             Name=course_id
         )
 
+        lambda_client = get_boto3_lambda()
+        payload = {
+            "source": "parqr-api"
+        }
+        lambda_client.invoke(
+            FunctionName='Parser:PROD',
+            InvocationType='Event',
+            Payload=bytes(json.dumps(payload), encoding='utf8')
+        )
+
         return {
-            "course_id": course_id,
-            "active": False
-        }, 200
+                   "course_id": course_id,
+                   "active": False
+               }, 200
 
 
 class FindCourseByCourseID(Resource):

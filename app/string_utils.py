@@ -55,8 +55,6 @@ def stringify_followups(followup_list):
 
 
 def lambda_handler(event, context):
-    print(event, context)
-
     if event["source"] == "ModelTrain":
         print("ModelTrain source")
         posts = event["posts"]

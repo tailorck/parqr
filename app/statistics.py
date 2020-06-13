@@ -1,5 +1,6 @@
 import platform
 
+import botocore
 import simplejson as json
 from datetime import datetime, timedelta
 import time
@@ -16,6 +17,13 @@ from app.constants import POST_AGE_SIGMOID_OFFSET, POST_MAX_AGE_DAYS
 from app.utils import pretty_date
 
 
+class SetEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, set):
+            return list(obj)
+        return json.JSONEncoder.default(self, obj)
+
+
 def get_posts_table(course_id):
     dynamodb = boto3.resource("dynamodb")
     posts_table = dynamodb.Table(course_id)
@@ -29,6 +37,10 @@ def get_posts_table(course_id):
 def get_courses_table():
     dynamodb = boto3.resource("dynamodb")
     return dynamodb.Table("Courses")
+
+
+def get_s3():
+    return boto3.client('s3')
 
 
 def _validate_starting_time(starting_time):
@@ -99,15 +111,13 @@ def get_inst_att_needed_posts(course_id, number_of_posts):
         try:
             start = time.time()
             response = posts.scan(
-                FilterExpression=Attr("resolved").eq(False)
-                & ~Attr("tags").contains("instructor-question")
+                FilterExpression=~Attr("tags").contains("instructor-question")
             )
             filtered_posts = response.get("Items")
 
             while "LastEvaluatedKey" in response:
                 response = posts.scan(
-                    FilterExpression=Attr("resolved").eq(False)
-                    & ~Attr("tags").contains("instructor-question"),
+                    FilterExpression=~Attr("tags").contains("instructor-question"),
                     ExclusiveStartKey=response["LastEvaluatedKey"],
                 )
                 filtered_posts.extend(response["Items"])
@@ -117,7 +127,7 @@ def get_inst_att_needed_posts(course_id, number_of_posts):
 
         if "Linux" in platform.platform():
             with open(filename, "w") as json_file:
-                json.dump(filtered_posts, json_file)
+                json.dump(filtered_posts, json_file, cls=SetEncoder)
 
         print(
             "Retrieved {} Posts from DDB in {} ms".format(
@@ -137,7 +147,7 @@ def get_inst_att_needed_posts(course_id, number_of_posts):
             "tags": post.get("tags"),
             "last_modified": int(post.get("created")),
             "pretty_date": pretty_date(int(post.get("created"))),
-            "assignees": post.get("assignees", []),
+            "assignees": list(post.get("assignees", [])),
             "good_questions": int(post.get("num_good_questions", 0)),
             "num_words": len(post.get("body", "").split()),
             "resolved": bool(post.get("resolved")) if post.get("resolved") else False,
@@ -164,7 +174,7 @@ def get_inst_att_needed_posts(course_id, number_of_posts):
     # questions and views
     filtered_posts = sorted(
         filtered_posts,
-        key=lambda a: (a.get("num_unresolved_followups"), a.get("num_views")),
+        key=lambda a: (a.get("num_unresolved_followups", 0), a.get("num_views", 0)),
     )
     n_posts = min(len(filtered_posts), number_of_posts)
     return list(map(_create_top_post, filtered_posts[:n_posts]))
@@ -192,125 +202,32 @@ def get_stud_att_needed_posts(course_id, num_posts):
     top_posts : list
         A list of dictionary of posts
     """
-    now = datetime.now()
-    # Sanity check to see if the course_id sent is valid course_id or not
     filename = "".join(["/tmp/", course_id, ".json"])
     start = time.time()
     if os.path.exists(filename):
         with open(filename, "r") as json_file:
-            filtered_posts = json.load(json_file)
+            recs = json.load(json_file)
 
         print(
             "Retrieved {} Posts from /tmp in {} ms".format(
-                len(filtered_posts), (time.time() - start) * 1000
+                len(recs), (time.time() - start) * 1000
             )
         )
     else:
-        posts = get_posts_table(course_id)
-        if not posts:
-            raise InvalidUsage("Invalid course id provided")
-        print(
-            "Checked if course was valid in {} ms".format((time.time() - start) * 1000)
-        )
-
-        max_age_date = int(
-            datetime.timestamp(now - timedelta(hours=POST_MAX_AGE_DAYS * 24))
-        )
-        print(max_age_date)
-
         try:
-            response = posts.scan(
-                FilterExpression=Attr("post_type").eq("question")
-                & ~Attr("tags").contains("instructor-question")
-                & Attr("created").gt(max_age_date)
-            )
-            filtered_posts = response.get("Items")
-
-            while "LastEvaluatedKey" in response:
-                response = posts.scan(
-                    FilterExpression=Attr("post_type").eq("question")
-                    & ~Attr("tags").contains("instructor-question")
-                    & Attr("created").gt(max_age_date),
-                    ExclusiveStartKey=response["LastEvaluatedKey"],
-                )
-                filtered_posts.extend(response["Items"])
-        except ClientError as ce:
-            print(ce)
+            get_s3().download_file("parqr", course_id + ".json", filename)
+        except botocore.exceptions.ClientError as e:
+            print("Could not find recs for cid '{}'".format(course_id))
             return []
-
-        if "Linux" in platform.platform():
-            with open(filename, "w") as json_file:
-                json.dump(filtered_posts, json_file)
+        else:
+            print("Downloaded recs from s3")
+            with open(filename, "rb") as input_file:
+                recs = json.load(input_file)
 
         print(
-            "Retrieved {} Posts from DDB in {} ms".format(
-                len(filtered_posts), (time.time() - start) * 1000
+            "Retrieved {} Posts from s3 in {} ms".format(
+                len(recs), (time.time() - start) * 1000
             )
         )
 
-    if len(filtered_posts) == 0:
-        print(
-            "No posts found since {} for course_id {}".format(max_age_date, course_id)
-        )
-        return []
-
-    def _create_top_post(post):
-        post_data = {
-            "post_id": int(post["post_id"]),
-            "subject": post["subject"],
-            "date_modified": int(post["created"]),
-            "followups": len(post.get("followups", [])),
-            "views": int(post["num_views"]),
-            "tags": post["tags"],
-            "i_answer": True if post.get("i_answer") is not None else False,
-            "s_answer": True if post.get("s_answer") is not None else False,
-            "resolved": True
-            if int(post.get("num_unresolved_followups", 0)) == 0
-            else False,
-        }
-
-        return post_data
-
-    def _posts_bqs_to_df(bqs):
-        dictionary = {
-            "post_id": [int(post["post_id"]) for post in bqs],
-            "created": [datetime.fromtimestamp(int(post["created"])) for post in bqs],
-            "num_followups": [len(post.get("followups", [])) for post in bqs],
-            "num_views": [int(post["num_views"]) for post in bqs],
-        }
-        return pd.DataFrame.from_dict(dictionary)
-
-    def _sigmoid(x, lookback, y_axis_flip=False):
-        exponential = np.exp((-1) ** y_axis_flip) * (x - lookback)
-        return exponential / (1 + exponential)
-
-    def _min_max_norm(x):
-        x = x + 1
-        return x / (x.max() - x.min())
-
-    print("{} filtered posts".format(len(filtered_posts)))
-    start = time.time()
-    posts_df = _posts_bqs_to_df(filtered_posts)
-    posts_df.created = posts_df.created.fillna(posts_df.created.min())
-    posts_age = now - posts_df.created
-    posts_df["norm_created"] = _sigmoid(
-        posts_age.dt.days, POST_AGE_SIGMOID_OFFSET, True
-    )
-    posts_df["norm_num_followups"] = _min_max_norm(posts_df.num_followups)
-    posts_df["norm_num_views"] = _min_max_norm(posts_df.num_views)
-    posts_df["importance"] = (
-        posts_df.norm_created * posts_df.norm_num_followups * posts_df.norm_num_views
-    )
-
-    posts_df = posts_df.sort_values(by="importance", ascending=False)
-    filtered_posts_ids = list(posts_df.head(num_posts).post_id)
-    top_posts = [
-        post for post in filtered_posts if post["post_id"] in filtered_posts_ids
-    ]
-    retval = list(map(_create_top_post, top_posts))
-    print(
-        "{} Recommended Posts in {} ms".format(
-            len(retval), (time.time() - start) * 1000
-        )
-    )
-    return retval
+    return recs
