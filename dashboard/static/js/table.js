@@ -1,6 +1,6 @@
 $(document).ready(function () {
   $('#mui-table').DataTable({
-    "order": [[ 4, 'desc' ]],
+    "order": [[ 4, 'desc' ], [3, 'desc']],
     "paging": false,
     "info": false
   });
