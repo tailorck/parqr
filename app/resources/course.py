@@ -23,10 +23,11 @@ def get_boto3_s3():
 def get_enrolled_courses_from_piazza():
     if os.path.exists("/tmp/courses.json"):
         print("Loading courses found in /tmp")
-        with open("/tmp/courses.json", "rb") as input_file:
+        with open("/tmp/courses.json", "r") as input_file:
             courses = json.load(input_file)
             return courses
     else:
+        print("Getting courses from s3")
         s3 = get_boto3_s3()
 
         response = s3.get_object(
@@ -34,8 +35,8 @@ def get_enrolled_courses_from_piazza():
             Key='courses.json'
         )
         courses = json.loads(response['Body'].read().decode("utf-8"))
-        with open("/tmp/courses.json", "wb") as input_file:
-            courses = json.dump(courses, input_file)
+        with open("/tmp/courses.json", "w") as input_file:
+            json.dump(courses, input_file)
 
         return courses
 
@@ -139,6 +140,9 @@ class ActiveCourse(Resource):
         :return:
         """
         print('Registering new course: {}'.format(course_id))
+
+        if os.path.exists("/tmp/courses.json"):
+            os.remove("/tmp/courses.json")
         valid_course_id = False
         course_info = ""
         for course in self.enrolled_courses:
@@ -219,6 +223,8 @@ class ActiveCourse(Resource):
     def delete(self, course_id):
         print('Deregistering course: {}'.format(course_id))
 
+        if os.path.exists("/tmp/courses.json"):
+            os.remove("/tmp/courses.json")
         # TODO: Could this throw an exception?
         cloudwatch_events = get_boto3_events()
         cloudwatch_events.disable_rule(

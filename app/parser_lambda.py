@@ -113,9 +113,7 @@ def update_student_recs(course_id, num_posts=5):
             "pretty_date": pretty_date(int(post.get("created"))),
             "i_answer": True if post.get("i_answer") is not None else False,
             "s_answer": True if post.get("s_answer") is not None else False,
-            "resolved": True
-            if int(post.get("num_unresolved_followups", 0)) == 0
-            else False,
+            "resolved": True if int(post.get("num_unresolved_followups", 0)) == 0 else False,
         }
 
         return post_data

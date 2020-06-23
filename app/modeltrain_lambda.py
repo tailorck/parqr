@@ -15,6 +15,13 @@ STOP_WORDS = set(ENGLISH_STOP_WORDS)
 lambda_client = boto3.client('lambda')
 
 
+class SetEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, set):
+            return list(obj)
+        return json.JSONEncoder.default(self, obj)
+
+
 class ModelTrain(object):
 
     def __init__(self, course_id):
@@ -95,7 +102,7 @@ class ModelTrain(object):
         response = lambda_client.invoke(
             FunctionName='Parqr-Cleaner:PROD',
             InvocationType='RequestResponse',
-            Payload=bytes(json.dumps(payload), encoding='utf8')
+            Payload=bytes(json.dumps(payload, cls=SetEncoder), encoding='utf8')
         )
         end = time.time()
 

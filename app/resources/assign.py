@@ -26,7 +26,7 @@ class ResolvePost(Resource):
             }
         )
 
-        filename = "".join(["/tmp/", course_id, ".json"])
+        filename = "".join(["/tmp/instructor-", course_id, ".json"])
         if os.path.exists(filename):
             os.remove(filename)
 
@@ -63,7 +63,7 @@ class AssignInstructor(Resource):
                 }
             )
 
-        filename = os.path.join("/tmp", course_id, ".json")
+        filename = os.path.join("/tmp/instructor-", course_id, ".json")
         if os.path.exists(filename):
             os.remove(filename)
 

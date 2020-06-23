@@ -91,7 +91,7 @@ def get_inst_att_needed_posts(course_id, number_of_posts):
     top_posts : list
         A list of dictionary of posts
     """
-    filename = "".join(["/tmp/", course_id, ".json"])
+    filename = "".join(["/tmp/instructor-", course_id, ".json"])
     start = time.time()
     if os.path.exists(filename):
         with open(filename, "r") as json_file:
@@ -202,7 +202,7 @@ def get_stud_att_needed_posts(course_id, num_posts):
     top_posts : list
         A list of dictionary of posts
     """
-    filename = "".join(["/tmp/", course_id, ".json"])
+    filename = "".join(["/tmp/student-", course_id, ".json"])
     start = time.time()
     if os.path.exists(filename):
         with open(filename, "r") as json_file:
